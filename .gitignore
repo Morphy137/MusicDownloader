@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.manifest
+*.spec
+
+# Installer logs
+debug.log
+
+# Virtual environments
+venv/
+venv*/
+ENV/
+.env/
+.venv/
+
+# PyInstaller
+*.spec
+*.exe
+*.dll
+*.pyd
+*.pyz
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# User files y secretos
+SPOTIFYPASS.txt
+
+# Salida de música descargada
+music/
+
+# ffmpeg auto-descarga
+ffmpeg_bin/
+ffmpeg.exe
+
+# Otros logs
+*.log
+
+# Ignorar assets solo si no los quieres en el repo
+# !assets/
