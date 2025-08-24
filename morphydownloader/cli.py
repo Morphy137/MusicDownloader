@@ -20,7 +20,7 @@ def download_cli(
     return download(url, output)
 
 def download(url, output="music", progress_callback=None, log_callback=None):
-    """Función principal de descarga - Simplificada y optimizada"""
+    """Función principal de descarga - Mejorada con mejor búsqueda en YouTube"""
     
     def log(msg, level="info"):
         if log_callback:
@@ -36,7 +36,7 @@ def download(url, output="music", progress_callback=None, log_callback=None):
             console.print(f"{colors.get(level, '')}{msg}{end_color}")
     
     try:
-        # Inicializar cliente Spotify (conexión ya optimizada)
+        # Inicializar cliente Spotify
         spotify = SpotifyClient()
         
         # Determinar tipo de contenido y obtener datos
@@ -81,11 +81,13 @@ def download(url, output="music", progress_callback=None, log_callback=None):
                 continue
             
             try:
-                # Buscar en YouTube
-                search_term = f"{track_info['track_title']} {track_info['artist_name']} audio"
-                log(f"({i}/{total}) Descargando '{track_info['track_title']} - {track_info['artist_name']}'...")
+                # Mejorada: Pasar toda la información del track
+                log(f"({i}/{total}) Buscando '{track_info['track_title']} - {track_info['artist_name']}'...")
                 
-                video_link = yt_downloader.find_youtube(search_term)
+                # Buscar en YouTube con información completa
+                video_link = yt_downloader.find_youtube(track_info)
+                
+                log(f"({i}/{total}) Descargando desde YouTube...")
                 audio_file = yt_downloader.download_audio(video_link)
                 
                 if audio_file and os.path.exists(audio_file):

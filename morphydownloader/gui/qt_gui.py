@@ -144,7 +144,13 @@ class MorphyDownloaderQt(QWidget):
         browse_btn = QPushButton()
         browse_btn.setCursor(QCursor(Qt.PointingHandCursor))
         browse_btn.setToolTip('Elegir carpeta')
-        browse_btn.setText('📁')
+        # Asignar icono SVG para seleccionar carpeta
+        folder_select_icon = Config.get_asset_path('folder_select.svg')
+        if os.path.exists(folder_select_icon):
+            browse_btn.setIcon(QIcon(folder_select_icon))
+            browse_btn.setIconSize(QSize(22, 22))
+        else:
+            browse_btn.setText('📁')
         browse_btn.setFixedWidth(44)
         browse_btn.setProperty("type", "secondary")
         browse_btn.clicked.connect(self.choose_folder)
@@ -155,8 +161,16 @@ class MorphyDownloaderQt(QWidget):
         layout.addLayout(folder_layout)
 
         # Botón descargar
-        self.download_btn = QPushButton('⬇️ Descargar')
+        self.download_btn = QPushButton()
         self.download_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        # Asignar icono SVG para descargar
+        folder_download_icon = Config.get_asset_path('folder_download.svg')
+        if os.path.exists(folder_download_icon):
+            self.download_btn.setIcon(QIcon(folder_download_icon))
+            self.download_btn.setIconSize(QSize(26, 26))
+            self.download_btn.setText('  Descargar')
+        else:
+            self.download_btn.setText('⬇️ Descargar')
         self.download_btn.setFont(QFont('Inter', 14, QFont.Bold))
         self.download_btn.clicked.connect(self.start_download)
         layout.addWidget(self.download_btn)
@@ -181,16 +195,30 @@ class MorphyDownloaderQt(QWidget):
         self.status_label = QLabel('')
         self.status_label.setFont(QFont('Inter', 12, QFont.Medium))
         
-        open_btn = QPushButton('🗂️')
+        open_btn = QPushButton()
         open_btn.setCursor(QCursor(Qt.PointingHandCursor))
         open_btn.setToolTip('Abrir carpeta de destino')
+        # Asignar icono SVG para abrir carpeta
+        folder_open_icon = Config.get_asset_path('folder_open.svg')
+        if os.path.exists(folder_open_icon):
+            open_btn.setIcon(QIcon(folder_open_icon))
+            open_btn.setIconSize(QSize(22, 22))
+        else:
+            open_btn.setText('🗂️')
         open_btn.setFixedWidth(44)
         open_btn.setProperty("type", "secondary")
         open_btn.clicked.connect(self.open_folder)
         
-        self.cancel_btn = QPushButton('❌')
+        self.cancel_btn = QPushButton()
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setToolTip('Cancelar descarga')
+        # Asignar icono SVG para cancelar
+        folder_cancel_icon = Config.get_asset_path('folder_cancel.svg')
+        if os.path.exists(folder_cancel_icon):
+            self.cancel_btn.setIcon(QIcon(folder_cancel_icon))
+            self.cancel_btn.setIconSize(QSize(22, 22))
+        else:
+            self.cancel_btn.setText('❌')
         self.cancel_btn.setFixedWidth(44)
         self.cancel_btn.clicked.connect(self.cancel_download)
         self.cancel_btn.setProperty("type", "secondary")

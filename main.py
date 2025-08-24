@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 MorphyDownloader - Spotify to MP3 Downloader
-Punto de entrada optimizado con auto-instalación
+Punto de entrada optimizado con auto-instalación y gestión de iconos
 """
-
+from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
 import sys
 import os
 import argparse
@@ -52,7 +52,7 @@ def ensure_ffmpeg():
         print("✅ FFmpeg disponible")
         return True
     
-    print("⚠️  FFmpeg no encontrado. Intentando instalación automática...")
+    print("⚠️ FFmpeg no encontrado. Intentando instalación automática...")
     
     try:
         from morphydownloader.utils_ffmpeg import ensure_ffmpeg as auto_install_ffmpeg
@@ -70,6 +70,30 @@ def check_spotify_credentials():
     return (os.environ.get('SPOTIPY_CLIENT_ID') and 
             os.environ.get('SPOTIPY_CLIENT_SECRET'))
 
+def check_assets():
+    """Verificar que los assets/iconos estén disponibles"""
+    assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
+    required_assets = [
+        'icon.png',
+        'icon.ico', 
+        'folder_cancel.svg',
+        'folder_download.svg',
+        'folder-open.svg',
+        'folder-select.svg'
+    ]
+    
+    missing_assets = []
+    for asset in required_assets:
+        asset_path = os.path.join(assets_dir, asset)
+        if not os.path.exists(asset_path):
+            missing_assets.append(asset)
+    
+    if missing_assets:
+        print(f"⚠️ Assets faltantes en carpeta assets/: {', '.join(missing_assets)}")
+        print("La aplicación funcionará pero sin algunos iconos")
+    else:
+        print("✅ Todos los assets encontrados")
+
 def main():
     """Punto de entrada principal optimizado"""
     print("🎵 MorphyDownloader - Iniciando...")
@@ -78,9 +102,12 @@ def main():
     if not install_requirements():
         sys.exit(1)
     
+    # Verificar assets
+    check_assets()
+    
     # Verificar FFmpeg
     if not ensure_ffmpeg():
-        print("⚠️  Continuando sin FFmpeg (puede causar errores)")
+        print("⚠️ Continuando sin FFmpeg (puede causar errores)")
     
     parser = argparse.ArgumentParser(
         description='MorphyDownloader - Descarga música de Spotify como MP3'
@@ -117,13 +144,23 @@ def main():
     else:
         # Modo GUI (por defecto)
         try:
-            from PySide6.QtWidgets import QApplication, QMessageBox
-            
             app = QApplication(sys.argv)
             app.setApplicationName("MorphyDownloader")
             app.setApplicationVersion("1.0.0")
             
-            # Verificar credenciales para GUI
+            # Cargar configuración guardada si existe
+            from morphydownloader.gui.config_dialog import load_saved_config, should_show_config
+            load_saved_config()
+            
+            # Mostrar diálogo de configuración si es necesario
+            if should_show_config():
+                from morphydownloader.gui.config_dialog import ConfigDialog
+                config_dialog = ConfigDialog()
+                if config_dialog.exec() != QDialog.Accepted:
+                    print("❌ Configuración cancelada")
+                    sys.exit(1)
+            
+            # Verificar credenciales después de la configuración
             if not check_spotify_credentials():
                 QMessageBox.critical(
                     None, 
@@ -141,7 +178,7 @@ def main():
             window = MorphyDownloaderQt()
             window.show()
             
-            print("🖥️  GUI iniciada correctamente")
+            print("🖥️ GUI iniciada correctamente")
             sys.exit(app.exec())
             
         except Exception as e:

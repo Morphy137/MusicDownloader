@@ -1,4 +1,4 @@
-# morphydownloader/gui/config_dialog.py - Ventana de configuración completa
+# morphydownloader/gui/config_dialog.py - Ventana de configuración con iconos
 
 import os
 import sys
@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, QFileDialog
 )
 from PySide6.QtGui import QFont, QPixmap, QIcon, QDesktopServices
-from PySide6.QtCore import Qt, QUrl, QSettings
+from PySide6.QtCore import Qt, QUrl, QSettings, QSize
 from ..config import Config
 
 class ConfigDialog(QDialog):
@@ -22,12 +22,14 @@ class ConfigDialog(QDialog):
         self.setFixedSize(600, 500)
         self.setModal(True)
         
-        # Icon
+        # Icon - Usar icon.png o icon.ico
         try:
             icon_path = Config.get_asset_path('icon.png')
+            if not os.path.exists(icon_path):
+                icon_path = Config.get_asset_path('icon.ico')
             if os.path.exists(icon_path):
                 self.setWindowIcon(QIcon(icon_path))
-        except:
+        except Exception as e:
             pass  # Si no encuentra el icono, continúa sin él
         
         layout = QVBoxLayout()
@@ -121,9 +123,23 @@ class ConfigDialog(QDialog):
         settings_layout.addWidget(QLabel('Directorio de descarga por defecto:'))
         default_output_layout = QHBoxLayout()
         self.output_dir_entry = QLineEdit(os.path.abspath('music'))
-        browse_btn = QPushButton('📁')
+        
+        # Botón browse con icono folder-select.svg
+        browse_btn = QPushButton()
         browse_btn.setFixedWidth(40)
+        browse_btn.setToolTip('Seleccionar carpeta')
+        try:
+            browse_icon_path = Config.get_asset_path('folder-select.svg')
+            if os.path.exists(browse_icon_path):
+                browse_btn.setIcon(QIcon(browse_icon_path))
+                browse_btn.setIconSize(QSize(18, 18))
+            else:
+                browse_btn.setText('📁')
+        except:
+            browse_btn.setText('📁')
+            
         browse_btn.clicked.connect(self.browse_output_dir)
+        
         default_output_layout.addWidget(self.output_dir_entry)
         default_output_layout.addWidget(browse_btn)
         settings_layout.addLayout(default_output_layout)
@@ -147,7 +163,18 @@ class ConfigDialog(QDialog):
         save_btn.clicked.connect(self.save_and_close)
         save_btn.setDefault(True)
         
-        cancel_btn = QPushButton('❌ Cancelar')
+        cancel_btn = QPushButton()
+        try:
+            cancel_icon_path = Config.get_asset_path('folder_cancel.svg')
+            if os.path.exists(cancel_icon_path):
+                cancel_btn.setIcon(QIcon(cancel_icon_path))
+                cancel_btn.setIconSize(QSize(16, 16))
+                cancel_btn.setText('Cancelar')
+            else:
+                cancel_btn.setText('❌ Cancelar')
+        except:
+            cancel_btn.setText('❌ Cancelar')
+            
         cancel_btn.clicked.connect(self.reject)
         
         button_layout.addWidget(test_btn)
@@ -272,7 +299,7 @@ class ConfigDialog(QDialog):
             old_id = os.environ.get('SPOTIPY_CLIENT_ID')
             old_secret = os.environ.get('SPOTIPY_CLIENT_SECRET')
             
-            os.environ['SPOTIFY_CLIENT_ID'] = client_id
+            os.environ['SPOTIPY_CLIENT_ID'] = client_id
             os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
             
             # Probar conexión
