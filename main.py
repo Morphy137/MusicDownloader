@@ -8,6 +8,7 @@ import sys
 import os
 import argparse
 import subprocess
+import shutil
 
 # Añadir el directorio del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,7 +21,8 @@ def install_requirements():
         'mutagen',
         'PySide6',
         'typer',
-        'rich'
+        'rich',
+        'certifi'  # Añadido para certificados SSL
     ]
     
     missing_packages = []
@@ -39,30 +41,43 @@ def install_requirements():
             print("✅ Dependencias instaladas correctamente")
         except subprocess.CalledProcessError as e:
             print(f"❌ Error instalando dependencias: {e}")
-            print("Por favor instala manualmente: pip install spotipy yt-dlp mutagen PySide6 typer rich")
+            print("Por favor instala manualmente: pip install spotipy yt-dlp mutagen PySide6 typer rich certifi")
             return False
     
     return True
 
-def ensure_ffmpeg():
-    """Asegurar que FFmpeg esté disponible"""
-    import shutil
-    
+def check_ffmpeg():
+    """Verificar que FFmpeg esté disponible - sin instalación automática"""
     if shutil.which('ffmpeg') or shutil.which('ffmpeg.exe'):
         print("✅ FFmpeg disponible")
         return True
     
-    print("⚠️ FFmpeg no encontrado. Intentando instalación automática...")
-    
+    print("⚠️ FFmpeg no encontrado en el PATH")
+    print("📋 FFmpeg es necesario para convertir audio a MP3")
+    print("🔧 Instrucciones de instalación disponibles en la configuración")
+    return False
+
+def setup_ssl_certificates():
+    """Configurar certificados SSL para descargas de portadas"""
     try:
-        from morphydownloader.utils_ffmpeg import ensure_ffmpeg as auto_install_ffmpeg
-        return auto_install_ffmpeg()
+        import ssl
+        import certifi
+        
+        # Configurar contexto SSL con certificados de certifi
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        
+        # Configurar variables de entorno para requests/urllib
+        os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+        os.environ['SSL_CERT_FILE'] = certifi.where()
+        
+        print("✅ Certificados SSL configurados")
+        return True
+        
+    except ImportError:
+        print("⚠️ Módulo certifi no encontrado - portadas podrían fallar")
+        return False
     except Exception as e:
-        print(f"❌ Error instalando FFmpeg automáticamente: {e}")
-        print("\n📋 Instala FFmpeg manualmente:")
-        print("Windows: https://www.gyan.dev/ffmpeg/builds/")
-        print("macOS: brew install ffmpeg")
-        print("Linux: sudo apt install ffmpeg")
+        print(f"⚠️ Error configurando certificados SSL: {e}")
         return False
 
 def check_spotify_credentials():
@@ -74,12 +89,12 @@ def check_assets():
     """Verificar que los assets/iconos estén disponibles"""
     assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
     required_assets = [
-        'icon.png',
-        'icon.ico', 
+        'icon.ico',
+        'icon_console.ico', 
         'folder_cancel.svg',
         'folder_download.svg',
-        'folder-open.svg',
-        'folder-select.svg'
+        'folder_open.svg',
+        'folder_select.svg'
     ]
     
     missing_assets = []
@@ -94,20 +109,58 @@ def check_assets():
     else:
         print("✅ Todos los assets encontrados")
 
+def show_dependencies_status():
+    """Mostrar estado de todas las dependencias"""
+    print("\n🔍 Verificando dependencias...")
+    print("=" * 50)
+    
+    # FFmpeg
+    ffmpeg_ok = check_ffmpeg()
+    
+    # SSL/Certificados
+    ssl_ok = setup_ssl_certificates()
+    
+    # Spotify credentials
+    spotify_ok = check_spotify_credentials()
+    if spotify_ok:
+        print("✅ Credenciales de Spotify configuradas")
+    else:
+        print("⚠️ Credenciales de Spotify no configuradas")
+    
+    # Assets
+    check_assets()
+    
+    print("=" * 50)
+    
+    # Resumen
+    issues = []
+    if not ffmpeg_ok:
+        issues.append("FFmpeg no está instalado")
+    if not ssl_ok:
+        issues.append("Certificados SSL no configurados")
+    if not spotify_ok:
+        issues.append("Credenciales de Spotify faltantes")
+    
+    if issues:
+        print(f"⚠️ Problemas encontrados: {len(issues)}")
+        for issue in issues:
+            print(f"  • {issue}")
+        print("\n💡 Usa la configuración inicial para solucionar estos problemas")
+    else:
+        print("✅ Todas las dependencias están correctas")
+    
+    print()
+
 def main():
     """Punto de entrada principal optimizado"""
     print("🎵 MorphyDownloader - Iniciando...")
     
-    # Auto-instalar dependencias
+    # Auto-instalar dependencias básicas
     if not install_requirements():
         sys.exit(1)
     
-    # Verificar assets
-    check_assets()
-    
-    # Verificar FFmpeg
-    if not ensure_ffmpeg():
-        print("⚠️ Continuando sin FFmpeg (puede causar errores)")
+    # Verificar todas las dependencias
+    show_dependencies_status()
     
     parser = argparse.ArgumentParser(
         description='MorphyDownloader - Descarga música de Spotify como MP3'
@@ -126,6 +179,14 @@ def main():
             print("SPOTIPY_CLIENT_ID=tu_client_id")
             print("SPOTIPY_CLIENT_SECRET=tu_client_secret")
             print("\n📋 Más info: https://developer.spotify.com/dashboard/")
+            sys.exit(1)
+        
+        if not check_ffmpeg():
+            print("❌ Error: FFmpeg no está instalado.")
+            print("📋 Instala FFmpeg para continuar:")
+            print("Windows: https://www.gyan.dev/ffmpeg/builds/")
+            print("macOS: brew install ffmpeg")
+            print("Linux: sudo apt install ffmpeg")
             sys.exit(1)
         
         if args.url:
@@ -160,16 +221,23 @@ def main():
                     print("❌ Configuración cancelada")
                     sys.exit(1)
             
-            # Verificar credenciales después de la configuración
+            # Verificar dependencias críticas después de la configuración
+            critical_issues = []
+            
             if not check_spotify_credentials():
+                critical_issues.append("Credenciales de Spotify no configuradas")
+            
+            if not check_ffmpeg():
+                # FFmpeg no es crítico, solo mostrar warning
+                print("⚠️ Advertencia: FFmpeg no encontrado - algunas descargas podrían fallar")
+            
+            if critical_issues:
                 QMessageBox.critical(
                     None, 
-                    "Credenciales Requeridas", 
-                    "MorphyDownloader necesita credenciales de Spotify.\n\n"
-                    "Configura las variables de entorno:\n"
-                    "SPOTIPY_CLIENT_ID\n"
-                    "SPOTIPY_CLIENT_SECRET\n\n"
-                    "Más info: https://developer.spotify.com/dashboard/"
+                    "Dependencias Críticas Faltantes", 
+                    "MorphyDownloader necesita las siguientes configuraciones:\n\n" +
+                    "\n".join([f"• {issue}" for issue in critical_issues]) +
+                    "\n\nPor favor, completa la configuración inicial."
                 )
                 sys.exit(1)
             
@@ -179,12 +247,15 @@ def main():
             window.show()
             
             print("🖥️ GUI iniciada correctamente")
+            print("💡 Si tienes problemas con las portadas, verifica los certificados SSL")
             sys.exit(app.exec())
             
         except Exception as e:
             print(f"❌ Error fatal: {e}")
             if 'QApplication' in str(e):
                 print("📋 Instala PySide6: pip install PySide6")
+            elif 'certifi' in str(e):
+                print("📋 Instala certifi: pip install certifi")
             sys.exit(1)
 
 if __name__ == '__main__':

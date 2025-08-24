@@ -111,7 +111,7 @@ class MorphyDownloaderQt(QWidget):
         self.setWindowFlag(Qt.WindowCloseButtonHint, True)
         
         # App icon
-        icon_path = Config.get_asset_path('icon.png')
+        icon_path = Config.get_asset_path('icon.ico')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             

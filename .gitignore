@@ -26,7 +26,6 @@ ENV/
 .venv/
 
 # PyInstaller
-*.spec
 *.exe
 *.dll
 *.pyd
