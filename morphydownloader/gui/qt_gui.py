@@ -6,10 +6,15 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QFont, QCursor
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from ..config import Config
+from contextlib import contextmanager
+
+import signal
+import threading
 import sys
 import os
+import time
 import traceback
-import re
+import logging
 
 # --- Customizable palette ---
 PRIMARY_COLOR = Config.PRIMARY_COLOR
@@ -20,8 +25,55 @@ ENTRY_BG = Config.ENTRY_BG
 SUCCESS_COLOR = Config.SUCCESS_COLOR
 ERROR_COLOR = Config.ERROR_COLOR
 
+# Configurar logging para debug
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+class TimeoutError(Exception):
+    pass
+
+@contextmanager
+def timeout_context(seconds):
+    """Context manager para timeout de operaciones - CORREGIDO"""
+    if hasattr(signal, 'SIGALRM') and hasattr(signal, 'alarm'):
+        # Unix systems
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Operation timed out after {seconds} seconds")
+        
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    else:
+        # Windows y otros sistemas - usar threading
+        class TimeoutThread(threading.Thread):
+            def __init__(self):
+                super().__init__()
+                self.daemon = True
+                self.exception = None
+                self.result = None
+                self.finished = False
+                
+            def run(self):
+                try:
+                    # El código principal se ejecutará en el hilo principal
+                    pass
+                except Exception as e:
+                    self.exception = e
+                finally:
+                    self.finished = True
+        
+        # Para Windows, simplemente hacer yield y confiar en otros mecanismos
+        try:
+            yield
+        except Exception as e:
+            raise
+
 class DownloadWorker(QThread):
-    """Worker thread para manejar las descargas sin bloquear la UI"""
+    """Worker thread optimizado con mejor logging de timing"""
     progress_updated = Signal(int, int)
     log_message = Signal(str, str)  # message, level
     download_finished = Signal(bool, str)  # success, message
@@ -31,31 +83,63 @@ class DownloadWorker(QThread):
         self.url = url
         self.output_dir = output_dir
         self.cancel_requested = False
+        self._timeout = 600  # 10 minutos
         
     def cancel(self):
         self.cancel_requested = True
         
     def run(self):
+        start_time = time.time()
+        success = False
+        message = ""
+        
         try:
-            # Importar aquí para evitar problemas de circular imports
+            # Timing de importaciones
+            import_start = time.time()
             try:
                 from ..cli import download
             except ImportError:
-                # Si no funciona el import relativo, intenta absoluto
                 import sys
                 import os
-                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 from cli import download
             
+            import_time = time.time() - import_start
+            logger.debug(f"⏱️  Import time: {import_time:.2f}s")
+            
             def progress_callback(current, total):
+                if self.cancel_requested:
+                    raise Exception("Descarga cancelada por el usuario")
+                
+                # Verificar timeout
+                if time.time() - start_time > self._timeout:
+                    raise Exception(f"Timeout después de {self._timeout}s")
+                
                 self.progress_updated.emit(current, total)
                 
             def log_callback(msg, level="info"):
+                # Añadir timing a los logs importantes
+                elapsed = time.time() - start_time
+                
                 if self.cancel_requested:
                     raise Exception("Descarga cancelada por el usuario")
-                self.log_message.emit(msg, level)
                 
-            # Ejecutar la descarga
+                if time.time() - start_time > self._timeout:
+                    raise Exception(f"Timeout después de {self._timeout}s")
+                
+                # Log con timing para debug
+                if "Conectando" in msg or "Descargando" in msg or "Descargado" in msg:
+                    timed_msg = f"[{elapsed:.1f}s] {msg}"
+                    logger.debug(timed_msg)
+                    self.log_message.emit(timed_msg, level)
+                else:
+                    self.log_message.emit(msg, level)
+            
+            # Inicio de descarga con timing
+            self.log_message.emit("🔗 Conectando con Spotify API...", "info")
+            spotify_start = time.time()
+            
+            # Ejecutar descarga
             download(
                 url=self.url, 
                 output=self.output_dir, 
@@ -64,12 +148,26 @@ class DownloadWorker(QThread):
             )
             
             if not self.cancel_requested:
-                self.download_finished.emit(True, "¡Descarga completada!")
+                total_time = time.time() - start_time
+                success = True
+                message = f"✅ Descarga completada en {total_time:.1f}s"
                 
         except Exception as e:
-            error_msg = f"Error: {str(e)}"
-            self.log_message.emit(traceback.format_exc(), "error")
-            self.download_finished.emit(False, error_msg)
+            total_time = time.time() - start_time
+            message = f"❌ Error después de {total_time:.1f}s: {str(e)}"
+            
+            # Log detallado solo para debug
+            logger.error(f"Error completo: {traceback.format_exc()}")
+            self.log_message.emit(str(e), "error")
+            success = False
+            
+        finally:
+            # Siempre emitir señal de finalización
+            try:
+                self.download_finished.emit(success, message)
+            except Exception as e:
+                logger.error(f"Error en finalización: {e}")
+
 
 class MorphyDownloaderQt(QWidget):
     def __init__(self):
@@ -326,43 +424,97 @@ class MorphyDownloaderQt(QWidget):
             self.status_label.setText(message)
 
     def start_download(self):
-        """Iniciar proceso de descarga"""
+        """Método start_download optimizado con mejor feedback"""
         url = self.url_entry.text().strip()
         output = self.output_entry.text().strip()
         
         if not url:
             QMessageBox.warning(self, "Error", "Por favor, ingresa una URL de Spotify.")
             return
-            
+        
         if not self.validate_spotify_url(url):
-            QMessageBox.warning(self, "Error", "La URL proporcionada no es válida de Spotify.")
+            QMessageBox.warning(
+                self, 
+                "URL No Válida", 
+                "La URL no es válida de Spotify.\n\n"
+                "Formatos compatibles:\n"
+                "• https://open.spotify.com/track/...\n"
+                "• https://open.spotify.com/playlist/...\n"
+                "• https://open.spotify.com/album/...\n"
+                "• https://spoti.fi/..."
+            )
             return
-            
+        
         # Limpiar interfaz
         self.output_box.clear()
-        self.append_log("Iniciando descarga...", "#8888ff")
-        self.show_status_message("Descargando...", PRIMARY_COLOR)
         
-        # Deshabilitar botones
+        # Mensaje inicial optimista
+        content_type = self.extract_spotify_type(url)
+        type_messages = {
+            'track': '🎵 Preparando descarga de canción...',
+            'playlist': '📋 Preparando descarga de playlist...',
+            'album': '💿 Preparando descarga de álbum...',
+            'unknown': '🎶 Preparando descarga...'
+        }
+        
+        self.append_log(type_messages.get(content_type, "🚀 Iniciando descarga..."), "#00ff88")
+        self.show_status_message("Iniciando...", PRIMARY_COLOR)
+        
+        # UI feedback
         self.download_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
         self.progress.setValue(0)
         
-        # Crear y iniciar worker thread
+        # Worker thread
         self.worker_thread = DownloadWorker(url, output)
         self.worker_thread.progress_updated.connect(self.update_progress)
         self.worker_thread.log_message.connect(self.handle_log_message)
         self.worker_thread.download_finished.connect(self.handle_download_finished)
+        
+        # Log de inicio para timing
+        import time
+        start_msg = f"⏱️  Inicio: {time.strftime('%H:%M:%S')}"
+        self.append_log(start_msg, "#888888")
+        
         self.worker_thread.start()
 
     def validate_spotify_url(self, url):
         """Validar que la URL sea de Spotify"""
+        if not url or not isinstance(url, str):
+            return False
+        
+        url = url.strip()
+        
+        # Patrones para diferentes tipos de enlaces de Spotify
         spotify_patterns = [
-            r'https://open\.spotify\.com/track/[a-zA-Z0-9]+',
-            r'https://open\.spotify\.com/playlist/[a-zA-Z0-9]+',
-            r'https://open\.spotify\.com/album/[a-zA-Z0-9]+'
+            # URLs estándar de open.spotify.com
+            r'https?://open\.spotify\.com/track/[a-zA-Z0-9]+(\?.*)?',
+            r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+(\?.*)?',
+            r'https?://open\.spotify\.com/album/[a-zA-Z0-9]+(\?.*)?',
+            r'https?://open\.spotify\.com/artist/[a-zA-Z0-9]+(\?.*)?',
+            
+            # URLs cortas de spotify:
+            r'spotify:track:[a-zA-Z0-9]+',
+            r'spotify:playlist:[a-zA-Z0-9]+',
+            r'spotify:album:[a-zA-Z0-9]+',
+            r'spotify:artist:[a-zA-Z0-9]+',
+            
+            # URLs compartidas (spoti.fi)
+            r'https?://spoti\.fi/[a-zA-Z0-9]+',
         ]
-        return any(re.match(pattern, url) for pattern in spotify_patterns)
+        
+        # Verificar si coincide con algún patrón
+        import re
+        for pattern in spotify_patterns:
+            if re.match(pattern, url):
+                return True
+        
+        # Intentar extraer ID de Spotify si la URL tiene formato inusual
+        spotify_id_pattern = r'[a-zA-Z0-9]{22}'
+        if re.search(spotify_id_pattern, url) and 'spotify' in url.lower():
+            return True
+        
+        return False
 
     def cancel_download(self):
         """Cancelar descarga en progreso"""
@@ -371,6 +523,20 @@ class MorphyDownloaderQt(QWidget):
             self.append_log("Cancelando descarga...", "#f1c40f")
             self.show_status_message("Cancelando...", ERROR_COLOR)
 
+    def extract_spotify_type(self, url):
+        """Extraer el tipo de contenido de Spotify"""
+        url = url.strip().lower()
+        
+        if 'track' in url:
+            return 'track'
+        elif 'playlist' in url:
+            return 'playlist'
+        elif 'album' in url:
+            return 'album'
+        elif 'artist' in url:
+            return 'artist'
+        else:
+            return 'unknown'
     def update_progress(self, current, total):
         """Actualizar barra de progreso"""
         if total > 0:
