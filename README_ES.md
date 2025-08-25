@@ -15,6 +15,7 @@ MorphyDownloader es una herramienta moderna y de código abierto para descargar 
 **Nota:**
 
 - El programa NO contiene malware, spyware ni troyanos. Todo el código es abierto y auditable.
+- Se recomienda desactivar temporalmente el Antivirus si el navegador no permite descargarlo.
 - Necesitas tus propias credenciales de la API de Spotify (ver abajo). La app te guiará en la configuración la primera vez que la ejecutes.
 
 ---

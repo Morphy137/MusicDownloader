@@ -15,6 +15,7 @@ MorphyDownloader is a modern, open-source tool to download songs, albums, or pla
 **Note:**
 
 - The program does NOT contain any malware, spyware, or trojans. All code is open source and auditable.
+- It is recommended to temporarily disable Antivirus if the browser does not allow you to download it.
 - You need your own Spotify API credentials (see below). The app will guide you through the setup the first time you run it.
 
 ---
