@@ -7,6 +7,7 @@ from .utils import clean_temp_folder
 import os
 import time
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed  # Nuevo import para paralelización
 
 app = typer.Typer()
 console = Console()
@@ -66,11 +67,11 @@ def download(url, output="music", progress_callback=None, log_callback=None):
         downloaded = 0
         total = len(songs)
         
-        for i, track_info in enumerate(songs, start=1):
-            # Formato de archivo: "Título - Artista.mp3"
+        # Nueva función para descargar una sola canción (para paralelización)
+        def download_song(track_info, i):
             title = re.sub(r'[\\/:*?"<>|]', '', track_info['track_title'])
             artist = re.sub(r'[\\/:*?"<>|]', '', track_info['artist_name'])
-            expected_name = f"{title} - {artist}.mp3"
+            expected_name = f"{title} - {artist}.m4a"  # Cambia a .mp3 si usas MP3
             destination = os.path.join(playlist_folder, expected_name)
             
             # Skip si ya existe
@@ -78,13 +79,10 @@ def download(url, output="music", progress_callback=None, log_callback=None):
                 log(f"({i}/{total}) {expected_name} ya existe. Saltando...", "warning")
                 if progress_callback:
                     progress_callback(i, total)
-                continue
+                return 0  # No descargada
             
             try:
-                # Mejorada: Pasar toda la información del track
                 log(f"({i}/{total}) Buscando '{track_info['track_title']} - {track_info['artist_name']}'...")
-                
-                # Buscar en YouTube con información completa
                 video_link = yt_downloader.find_youtube(track_info)
                 
                 log(f"({i}/{total}) Descargando desde YouTube...")
@@ -98,19 +96,28 @@ def download(url, output="music", progress_callback=None, log_callback=None):
                     if os.path.abspath(audio_file) != os.path.abspath(destination):
                         os.replace(audio_file, destination)
                     
-                    downloaded += 1
                     log(f"✅ Descargado: {expected_name}", "success")
+                    return 1  # Descargada exitosamente
                 else:
                     log(f"❌ Error descargando {track_info['track_title']}", "error")
+                    return 0
                 
-                if progress_callback:
-                    progress_callback(i, total)
-                    
             except Exception as e:
                 log(f"❌ Error en {track_info['track_title']}: {e}", "error")
+                return 0
+            
+            finally:
                 if progress_callback:
                     progress_callback(i, total)
-                continue
+        
+        # Paralelización: Usar ThreadPoolExecutor con max_workers=2
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = []
+            for i, track_info in enumerate(songs, start=1):
+                futures.append(executor.submit(download_song, track_info, i))
+            
+            for future in as_completed(futures):
+                downloaded += future.result() or 0  # Sumar descargas exitosas
         
         # Limpieza final
         clean_temp_folder(temp_dir)

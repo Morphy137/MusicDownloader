@@ -45,9 +45,8 @@ class YouTubeDownloader:
         
         # Solo 3-4 consultas más efectivas en orden de prioridad
         queries = [
-            f'ytsearch5:"{clean_artist}" "{clean_title}"',  # Búsqueda exacta con comillas
-            f'ytsearch5:{clean_artist} {clean_title} official',  # Con "official"
-            f'ytsearch5:{clean_artist} {clean_title}',  # Sin comillas
+            f'ytsearch2:"{clean_artist}" "{clean_title}"',  # Solo 2 resultados
+            f'ytsearch2:{clean_artist} {clean_title}',
         ]
         
         # Solo agregar consulta adicional si el título es muy específico
@@ -80,7 +79,7 @@ class YouTubeDownloader:
         
         # 2. Coincidencia de artista (35% del peso)
         if artist_norm in video_title_norm or artist_norm in uploader_norm:
-            score += 0.35
+            score += 0.25
         
         # 3. Filtros rápidos de calidad (15% del peso)
         duration = entry.get('duration', 0)
@@ -92,7 +91,7 @@ class YouTubeDownloader:
         # Canal oficial rápido
         uploader_lower = entry.get('uploader', '').lower()
         if any(indicator in uploader_lower for indicator in ['official', 'records', 'vevo', 'topic']):
-            score += 0.05
+            score += 0.15
         
         # Penalizaciones rápidas
         title_lower = entry.get('title', '').lower()
@@ -145,7 +144,7 @@ class YouTubeDownloader:
                         logger.debug(f"Quick match found: {entry.get('title')} (score: {score:.2f})")
                         return {'entry': entry, 'score': score}
                 
-                if best_video and best_score > 0.4:  # Umbral más bajo para ser más rápido
+                if best_video and best_score > 0.6:  # Umbral más bajo para ser más rápido
                     return {'entry': best_video, 'score': best_score}
                     
         except Exception as e:
@@ -154,80 +153,99 @@ class YouTubeDownloader:
         return None
     
     def find_youtube(self, track_info: dict) -> str:
-        """Búsqueda ultra-optimizada en YouTube"""
+        """Búsqueda ultra-optimizada en YouTube con fallback agregando 'song' al título si no se encuentra resultado adecuado"""
         if not track_info or not track_info.get('track_title'):
             raise ValueError("Track info cannot be empty")
 
         artist = track_info.get('artist_name', '')
         title = track_info.get('track_title', '')
-        
+
         # Cache check
         cache_key = f"{artist}_{title}".lower()
         if cache_key in self.search_cache:
             cached_result = self.search_cache[cache_key]
             logger.debug(f"Using cached result for: {artist} - {title}")
             return cached_result
-        
+
         logger.debug(f"Searching YouTube for: {artist} - {title}")
         start_time = time.time()
-        
+
         queries = self._get_optimized_search_queries(track_info)
-        
+
         # Buscar secuencialmente, parando en el primer buen resultado
         for query in queries:
             result = self._search_single_query(query, track_info)
-            
+
             if result and result['score'] > 0.4:
                 video_url = f"https://www.youtube.com/watch?v={result['entry']['id']}"
-                
+
                 # Cache del resultado
                 self.search_cache[cache_key] = video_url
-                
+
                 # Limpiar cache si se vuelve muy grande
                 if len(self.search_cache) > 100:
                     # Remover entradas más antiguas (simple FIFO)
                     oldest_keys = list(self.search_cache.keys())[:20]
                     for key in oldest_keys:
                         del self.search_cache[key]
-                
+
                 elapsed_time = time.time() - start_time
                 logger.info(f"Found: {result['entry'].get('title')} by {result['entry'].get('uploader')} "
-                          f"(score: {result['score']:.2f}, time: {elapsed_time:.1f}s)")
-                
+                            f"(score: {result['score']:.2f}, time: {elapsed_time:.1f}s)")
+
                 return video_url
-        
+
+        # Fallback: agregar 'song' al final del título y buscar de nuevo, usar el primer resultado
+        logger.info(f"No suitable video found for: {artist} - {title}, retrying with 'song' appended...")
+        fallback_title = f"{title} song"
+        fallback_query = f'ytsearch1:"{artist}" "{fallback_title}"'
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'skip_download': True,
+                'extract_flat': False,
+                'force_json': True,
+                'no_warnings': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(fallback_query, download=False)
+                entries = info.get('entries', [])
+                if entries:
+                    entry = entries[0]
+                    # Validar que el entry tiene 'id' y 'title' para evitar cuelgues
+                    if 'id' in entry and 'title' in entry:
+                        video_url = f"https://www.youtube.com/watch?v={entry['id']}"
+                        self.search_cache[cache_key] = video_url
+                        elapsed_time = time.time() - start_time
+                        logger.info(f"Fallback used: {entry.get('title')} by {entry.get('uploader')} (time: {elapsed_time:.1f}s)")
+                        return video_url
+                    else:
+                        logger.warning(f"Fallback entry missing 'id' or 'title': {entry}")
+        except Exception as e:
+            logger.warning(f"Fallback search failed for: {artist} - {fallback_title}: {e}")
+
         # Si no encontramos nada bueno, error descriptivo
         elapsed_time = time.time() - start_time
         logger.warning(f"No suitable video found for: {artist} - {title} (searched {elapsed_time:.1f}s)")
         raise ValueError(f"No suitable YouTube video found for: {artist} - {title}")
     
     def download_audio(self, yt_link: str) -> str:
-        """Download audio from YouTube link with optimized settings"""
+        """Download audio from YouTube link as m4a"""
         ydl_opts = {
-            'format': 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
+            'format': 'bestaudio[ext=m4a]',  # Solo m4a
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            'extractaudio': True,
-            'audioformat': 'mp3',
-            'audioquality': self.quality,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': self.quality,
-            }],
-            'socket_timeout': 20,  # Reducido de 30 a 20
-            'retries': 2,          # Reducido de 3 a 2
-            'fragment_retries': 2, # Reducido de 3 a 2
+            'socket_timeout': 20,
+            'retries': 2,
+            'fragment_retries': 2,
             'ignoreerrors': False,
         }
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(yt_link, download=True)
                 base_filename = ydl.prepare_filename(info)
-                mp3_filename = os.path.splitext(base_filename)[0] + '.mp3'
-                return mp3_filename
+                return base_filename  # Retorna .m4a
             except Exception as e:
                 logger.error(f"Error downloading {yt_link}: {e}")
                 raise
