@@ -1,16 +1,22 @@
-# MorphyDownloader (Español)
+# MorphyDownloader 🎵
 
-MorphyDownloader es una herramienta moderna y de código abierto para descargar canciones, álbumes o playlists de Spotify en formato MP3, obteniendo el audio desde YouTube y añadiendo metadatos completos automáticamente (título, artista, álbum, carátula, año, etc.). Incluye tanto una interfaz gráfica (GUI) intuitiva como una potente línea de comandos (CLI).
+**Una herramienta moderna y de código abierto para descargar canciones, álbumes o playlists de Spotify** en archivos MP3, obteniendo el audio desde YouTube y añadiendo automáticamente metadatos completos (título, artista, álbum, carátula, año, etc.). Incluye tanto una interfaz gráfica intuitiva (GUI) como una potente línea de comandos (CLI).
+
+![MorphyDownloader GUI](assets/img/screnshot.png)
 
 ---
 
-## ¿Cómo funciona?
+---
 
-1. Obtiene la información de canciones, álbumes o playlists desde Spotify usando la API oficial (necesitas tus propias credenciales).
-2. Busca la mejor coincidencia de cada canción en YouTube usando yt-dlp.
+## 🚀 ¿Cómo funciona?
+
+1. Obtiene la información de la canción, álbum o playlist desde Spotify usando la API oficial (necesitas tus propias credenciales).
+2. Busca la mejor coincidencia en YouTube para cada pista usando yt-dlp.
 3. Descarga el audio en la mejor calidad disponible y lo convierte a MP3 usando ffmpeg.
-4. Añade metadatos completos y carátula de Spotify usando mutagen.
-5. Todo el proceso es automático, robusto y con logs claros tanto en CLI como en GUI.
+4. Añade metadatos completos y carátula desde Spotify usando mutagen.
+5. El proceso es totalmente automático, robusto y muestra el progreso claramente tanto en CLI como en GUI.
+
+![MorphyDownloader URL](assets/img/URL_Song.png)
 
 **Nota:**
 
@@ -20,25 +26,40 @@ MorphyDownloader es una herramienta moderna y de código abierto para descargar 
 
 ---
 
-## Instalación y requisitos
+---
 
-1. **Python 3.12 o superior**
-2. **ffmpeg** instalado y en el PATH ([descargar aquí](https://www.gyan.dev/ffmpeg/builds/))
+## 🛠️ Instalación y requisitos
+
+1. **Python 3.12 o superior** 🐍
+2. **ffmpeg** instalado y en tu PATH ([descargar aquí](https://www.gyan.dev/ffmpeg/builds/))
 3. Instala las dependencias:
+
    ```sh
    pip install -r requirements.txt
    ```
+
 4. Crea una app en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/) y obtén tu `Client ID` y `Client Secret`.
-5. Crea un archivo llamado `SPOTIFYPASS.txt` con:
-   ```
-   $env:SPOTIPY_CLIENT_ID='TU_CLIENT_ID'
-   $env:SPOTIPY_CLIENT_SECRET='TU_CLIENT_SECRET'
-   ```
-   O configura estas variables de entorno.
+
+5. Configura tus credenciales:
+
+   - El programa te guiará en la configuración la primera vez que lo ejecutes (recomendado para la mayoría de usuarios).
+   - Alternativamente, puedes establecer las siguientes variables de entorno manualmente:
+     - `SPOTIPY_CLIENT_ID`
+     - `SPOTIPY_CLIENT_SECRET`
 
 ---
 
-## Uso
+## 📥 Descargar (Ejecutable precompilado)
+
+Puedes descargar un `.exe` precompilado (y versión consola) desde la sección de releases de GitHub. No requiere instalación: solo ejecuta el archivo y sigue las instrucciones de configuración.
+
+![MorphyDownloader .EXE](assets/img/ejecutables.png)
+
+---
+
+---
+
+## 🎧 Uso
 
 ### Interfaz gráfica (GUI)
 
@@ -48,7 +69,7 @@ Para lanzar la GUI:
 python main.py
 ```
 
-Pega la URL de Spotify, elige la carpeta de destino y sigue el progreso en tiempo real.
+Pega tu URL de Spotify, elige la carpeta de destino y sigue el progreso en tiempo real.
 
 ### Línea de comandos (CLI)
 
@@ -60,12 +81,14 @@ python -m morphydownloader.cli --url "https://open.spotify.com/playlist/ID_DE_LA
 
 Opciones principales:
 
-- `--url` : URL de la playlist, álbum o canción de Spotify
+- `--url`: URL de playlist, álbum o canción de Spotify
 - `--output`: Carpeta de destino para los MP3
 
 ---
 
-## Estructura del proyecto
+---
+
+## 📂 Estructura del proyecto
 
 - `main.py`: Punto de entrada. Lanza la GUI por defecto o la CLI si se indica.
 - `morphydownloader/`: Código fuente principal.
@@ -78,35 +101,40 @@ Opciones principales:
 
 ---
 
-## Dependencias principales
+---
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (descarga y búsqueda en YouTube)
-- [spotipy](https://github.com/spotipy-dev/spotipy) (API de Spotify)
-- [mutagen](https://github.com/quodlibet/mutagen) (metadatos MP3)
-- [PySide6](https://doc.qt.io/qtforpython/) (GUI Qt)
-- [typer](https://github.com/tiangolo/typer) (CLI)
-- [rich](https://github.com/Textualize/rich) (salida colorida)
-- [ffmpeg](https://ffmpeg.org/) (debes instalarlo manualmente)
+## 📦 Dependencias principales
+
+- yt-dlp (descarga y búsqueda en YouTube)
+- spotipy (API de Spotify)
+- mutagen (metadatos MP3)
+- PySide6 (GUI Qt)
+- typer (CLI)
+- rich (salida colorida)
+- ffmpeg (debes instalarlo manualmente)
 
 ---
 
-## Notas y recomendaciones
+---
 
-- El proyecto está modularizado y es fácil de mantener o extender.
+## ⚠️ Notas y recomendaciones
+
+- El proyecto es modular y fácil de mantener o extender.
 - Si tienes problemas con la búsqueda en YouTube, asegúrate de tener la última versión de yt-dlp y ffmpeg.
 - Los archivos temporales y tokens se regeneran automáticamente.
 - ¡Si te gusta este proyecto, considera darle una ⭐ en GitHub y compartirlo!
 
 ---
 
-## Licencia
+---
+
+## 📜 Licencia
 
 MIT License
 
 ---
 
-**¡Gracias por usar MorphyDownloader!**
-Si tienes sugerencias, abre un issue o pull request.
+**¡Gracias por usar MorphyDownloader!** 🎧 Si tienes sugerencias, abre un issue o pull request.
 
 ---
 
