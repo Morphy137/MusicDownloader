@@ -2,7 +2,7 @@
 
 **A modern, open-source tool to download songs, albums, or playlists from Spotify** as MP3 files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI).
 
-![MorphyDownloader GUI](assets/screnshot.png)
+![MorphyDownloader GUI](assets/img/screnshot.png)
 
 ---
 
@@ -13,6 +13,8 @@
 3. Downloads the audio in the best available quality and converts it to MP3 using ffmpeg.
 4. Adds full metadata and cover art from Spotify using mutagen.
 5. The process is fully automatic, robust, and logs progress clearly in both CLI and GUI.
+
+![MorphyDownloader URL](assets/img/URL_Song.png)
 
 **Note:**
 
@@ -48,6 +50,8 @@
 ## 📥 Download (Pre-built Executable)
 
 You can download a pre-built `.exe` (and console version) from the GitHub releases section. No installation required—just run the executable and follow the setup instructions.
+
+![MorphyDownloader .EXE](assets/img/ejecutables.png)
 
 ---
 
