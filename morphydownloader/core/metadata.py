@@ -59,7 +59,7 @@ class MetadataSetter:
                 "tracknumber": str(metadata.get("track_number", "")),
                 "isrc": metadata.get("isrc", ""),
             })
-            mp3file.save()
+            mp3file.save(v2_version=3)  # Forzar ID3v2.3 para compatibilidad con Windows
             logger.debug(f"Basic metadata set for {os.path.basename(file_path)}")
             
             # Handle album art with multiple fallback strategies
@@ -176,14 +176,16 @@ class MetadataSetter:
             
             # Set the album art
             audio = ID3(file_path)
-            audio["APIC"] = APIC(
-                encoding=3, 
-                mime=mime_type, 
+            # Eliminar carátulas previas para evitar duplicados
+            audio.delall("APIC")
+            audio.add(APIC(
+                encoding=3,  # UTF-8
+                mime=mime_type,
                 type=3,  # Cover (front)
-                desc="Cover", 
+                desc="Cover",
                 data=album_art_data
-            )
-            audio.save()
+            ))
+            audio.save(v2_version=3)  # Forzar ID3v2.3 para compatibilidad con Windows
             
             logger.debug(f"Album art set successfully: {len(album_art_data)} bytes, {mime_type}")
             
