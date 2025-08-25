@@ -17,7 +17,7 @@ dist/
 
 # Installer logs
 debug.log
-.cache/
+.cache
 
 # Virtual environments
 venv/
