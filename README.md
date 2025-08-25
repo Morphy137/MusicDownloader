@@ -2,7 +2,7 @@
 
 **A modern, open-source tool to download songs, albums, or playlists from Spotify** as MP3 files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI).
 
-![MorphyDownloader GUI](https://github.com/Morphy137/MusicDownloader/raw/optimizaciones-nuevas/assets/screenshot.png)
+![MorphyDownloader GUI](assets/screenshot.png)
 
 ---
 
