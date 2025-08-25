@@ -1,10 +1,12 @@
-# MorphyDownloader
+# MorphyDownloader 🎵
 
-MorphyDownloader is a modern, open-source tool to download songs, albums, or playlists from Spotify as MP3 files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI).
+**A modern, open-source tool to download songs, albums, or playlists from Spotify** as MP3 files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI).
+
+![MorphyDownloader GUI](assets/screnshot.png)
 
 ---
 
-## How does it work?
+## 🚀 How does it work?
 
 1. Retrieves song, album, or playlist information from Spotify using the official API (you need your own credentials).
 2. Searches for the best YouTube match for each track using yt-dlp.
@@ -20,18 +22,22 @@ MorphyDownloader is a modern, open-source tool to download songs, albums, or pla
 
 ---
 
-## Installation & Requirements
+## 🛠️ Installation & Requirements
 
-1. **Python 3.12 or higher**
-2. **ffmpeg** installed and in your PATH ([download here](https://www.gyan.dev/ffmpeg/builds/))
+1. **Python 3.12 or higher** 🐍
+
+2. **ffmpeg** installed and in your PATH (download here)
+
 3. Install dependencies:
 
    ```sh
    pip install -r requirements.txt
    ```
 
-4. Create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/) and get your `Client ID` and `Client Secret`.
+4. Create an app in the Spotify Developer Dashboard and get your `Client ID` and `Client Secret`.
+
 5. Configure your credentials:
+
    - The program will guide you through the setup the first time you run it (recommended for most users).
    - Alternatively, you can set the following environment variables manually:
      - `SPOTIPY_CLIENT_ID`
@@ -39,13 +45,13 @@ MorphyDownloader is a modern, open-source tool to download songs, albums, or pla
 
 ---
 
-## Download (Pre-built Executable)
+## 📥 Download (Pre-built Executable)
 
-You can download a pre-built `.exe` (and console version) from the [GitHub releases](https://github.com/Morphy137/MusicDownloader/releases) section. No installation required—just run the executable and follow the setup instructions.
+You can download a pre-built `.exe` (and console version) from the GitHub releases section. No installation required—just run the executable and follow the setup instructions.
 
 ---
 
-## Usage
+## 🎧 Usage
 
 ### Graphical Interface (GUI)
 
@@ -67,12 +73,12 @@ python -m morphydownloader.cli --url "https://open.spotify.com/playlist/PLAYLIST
 
 Main options:
 
-- `--url` : Spotify playlist, album, or track URL
+- `--url`: Spotify playlist, album, or track URL
 - `--output`: Output folder for MP3 files
 
 ---
 
-## Project Structure
+## 📂 Project Structure
 
 - `main.py`: Entry point. Launches the GUI by default or CLI if specified.
 - `morphydownloader/`: Main source code.
@@ -85,19 +91,19 @@ Main options:
 
 ---
 
-## Main Dependencies
+## 📦 Main Dependencies
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (YouTube download/search)
-- [spotipy](https://github.com/spotipy-dev/spotipy) (Spotify API)
-- [mutagen](https://github.com/quodlibet/mutagen) (MP3 metadata)
-- [PySide6](https://doc.qt.io/qtforpython/) (Qt GUI)
-- [typer](https://github.com/tiangolo/typer) (CLI)
-- [rich](https://github.com/Textualize/rich) (colored output)
-- [ffmpeg](https://ffmpeg.org/) (must be installed manually)
+- yt-dlp (YouTube download/search)
+- spotipy (Spotify API)
+- mutagen (MP3 metadata)
+- PySide6 (Qt GUI)
+- typer (CLI)
+- rich (colored output)
+- ffmpeg (must be installed manually)
 
 ---
 
-## Notes & Recommendations
+## ⚠️ Notes & Recommendations
 
 - The project is modular and easy to maintain or extend.
 - If you have issues with YouTube search, ensure you have the latest yt-dlp and ffmpeg.
@@ -106,17 +112,16 @@ Main options:
 
 ---
 
-## License
+## 📜 License
 
 MIT License
 
 ---
 
-**Thanks for using MorphyDownloader!**
-If you have suggestions, open an issue or pull request.
+**Thanks for using MorphyDownloader!** 🎧If you have suggestions, open an issue or pull request.
 
 ---
 
-# Español
+## 🌍 Español
 
-For the Spanish version, see [README_ES.md](README_ES.md)
+For the Spanish version, see README_ES.md

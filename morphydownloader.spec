@@ -47,6 +47,7 @@ a = Analysis(
         'mutagen.easyid3',
         'mutagen.id3',
         'mutagen.mp3',
+        'mutagen.mp4',
         'mutagen._file',
         'mutagen._tags',
         # GUI

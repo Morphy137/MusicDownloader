@@ -1,12 +1,11 @@
 """MP3 metadata setter module - Enhanced SSL and certificate handling"""
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.id3 import ID3, APIC
 import urllib.request
-import urllib.error
-import ssl
 import tempfile
+import ssl
 import os
 import sys
-from mutagen.easyid3 import EasyID3
-from mutagen.id3 import APIC, ID3
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,34 +45,26 @@ class MetadataSetter:
     
     @staticmethod
     def set_metadata(metadata, file_path):
-        """Set metadata for MP3 file with improved album art handling"""
+        """Set metadata for m4a file"""
         try:
-            # Set basic metadata first
-            mp3file = EasyID3(file_path)
-            mp3file.update({
-                "albumartist": metadata.get("artist_name", ""),
-                "artist": ", ".join(metadata.get("artists", [])),
-                "album": metadata.get("album_name", ""),
-                "title": metadata.get("track_title", ""),
-                "date": metadata.get("release_date", ""),
-                "tracknumber": str(metadata.get("track_number", "")),
-                "isrc": metadata.get("isrc", ""),
-            })
-            mp3file.save(v2_version=3)  # Forzar ID3v2.3 para compatibilidad con Windows
+            # Set basic metadata
+            mp4file = MP4(file_path)
+            mp4file['\xa9nam'] = metadata.get("track_title", "")  # Title
+            mp4file['\xa9ART'] = ", ".join(metadata.get("artists", []))  # Artist
+            mp4file['\xa9alb'] = metadata.get("album_name", "")  # Album
+            mp4file['\xa9day'] = metadata.get("release_date", "")  # Year
+            mp4file['trkn'] = [(metadata.get("track_number", 0), 0)]  # Track number
+            mp4file.save()
             logger.debug(f"Basic metadata set for {os.path.basename(file_path)}")
             
-            # Handle album art with multiple fallback strategies
+            # Handle album art
             album_art_url = metadata.get("album_art", "")
             if album_art_url:
                 try:
                     MetadataSetter._set_album_art_with_fallbacks(file_path, album_art_url)
                     logger.debug(f"Album art successfully set for {os.path.basename(file_path)}")
                 except Exception as e:
-                    logger.warning(f"Failed to set album art for {os.path.basename(file_path)}: {e}")
-                    # No lanzar excepción, solo continuar sin portada
-            else:
-                logger.debug(f"No album art URL provided for {os.path.basename(file_path)}")
-                    
+                    logger.warning(f"Failed to set album art: {e}")
         except Exception as e:
             logger.error(f"Failed to set metadata for {file_path}: {e}")
             raise
@@ -128,7 +119,7 @@ class MetadataSetter:
     
     @staticmethod
     def _download_and_set_art(file_path, album_art_url, ssl_context):
-        """Download and set album art with given SSL context"""
+        """Download and set album art with given SSL context for MP3 or m4a"""
         # Create request with proper headers
         request = urllib.request.Request(
             album_art_url,
@@ -174,20 +165,28 @@ class MetadataSetter:
             elif album_art_url.lower().endswith('.webp'):
                 mime_type = "image/webp"
             
-            # Set the album art
-            audio = ID3(file_path)
-            # Eliminar carátulas previas para evitar duplicados
-            audio.delall("APIC")
-            audio.add(APIC(
-                encoding=3,  # UTF-8
-                mime=mime_type,
-                type=3,  # Cover (front)
-                desc="Cover",
-                data=album_art_data
-            ))
-            audio.save(v2_version=3)  # Forzar ID3v2.3 para compatibilidad con Windows
+            # Check file extension to determine format
+            if file_path.lower().endswith('.m4a'):
+                # Handle m4a
+                audio = MP4(file_path)
+                # Remove previous covers to avoid duplicates
+                audio.pop('covr', None)
+                audio['covr'] = [MP4Cover(album_art_data, imageformat=MP4Cover.FORMAT_JPEG if mime_type == "image/jpeg" else MP4Cover.FORMAT_PNG)]
+                audio.save()
+            else:
+                # Handle MP3
+                audio = ID3(file_path)
+                audio.delall("APIC")
+                audio.add(APIC(
+                    encoding=0,  # Latin1 para max compatibilidad
+                    mime=mime_type,
+                    type=3,  # Cover (front)
+                    desc="Cover",
+                    data=album_art_data
+                ))
+                audio.save(v2_version=3)  # ID3v2.3 para compatibilidad
             
-            logger.debug(f"Album art set successfully: {len(album_art_data)} bytes, {mime_type}")
+            logger.debug(f"Album art set successfully: {len(album_art_data)} bytes, {mime_type}, file: {file_path}")
             
         except urllib.error.HTTPError as e:
             raise Exception(f"HTTP error {e.code}: {e.reason}")
