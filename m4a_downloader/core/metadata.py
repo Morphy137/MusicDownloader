@@ -1,4 +1,4 @@
-"""MP3 metadata setter module - Enhanced SSL and certificate handling"""
+"""M4A metadata setter module - Enhanced SSL and certificate handling"""
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.id3 import ID3, APIC
 import urllib.request

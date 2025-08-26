@@ -8,20 +8,20 @@ import sys
 class Config:
     # Directorios
     DEFAULT_OUTPUT_DIR = 'music'
-    TEMP_DIR_NAME = 'tmp'
+    TEMP_DIR_NAME = '.tmp'
     
     # Calidad de audio
     SUPPORTED_QUALITY = ['128', '192', '256', '320']
     DEFAULT_QUALITY = '192'
     
     # Colores de la interfaz
-    PRIMARY_COLOR = '#DC143C'
-    PRIMARY_DARK = '#a10e2a'
-    BG_COLOR = '#181a1b'
-    FG_COLOR = '#e1e1e1'
-    ENTRY_BG = '#23272e'
-    SUCCESS_COLOR = '#2ecc71'
-    ERROR_COLOR = '#e74c3c'
+    PRIMARY_COLOR = "#E94560"
+    PRIMARY_DARK = "#B8233A"
+    BG_COLOR = "#181A20"
+    FG_COLOR = "#F5F6FA"
+    ENTRY_BG = "#23243A"
+    SUCCESS_COLOR = "#22C55E"
+    ERROR_COLOR = "#F43F5E"
     
     @staticmethod
     def get_asset_path(filename):

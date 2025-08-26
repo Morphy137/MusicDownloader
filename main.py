@@ -8,7 +8,6 @@ import sys
 import os
 import argparse
 import subprocess
-import shutil
 
 # Añadir el directorio del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -46,25 +45,13 @@ def install_requirements():
     
     return True
 
-def check_ffmpeg():
-    """Verificar que FFmpeg esté disponible - sin instalación automática"""
-    if shutil.which('ffmpeg') or shutil.which('ffmpeg.exe'):
-        print("✅ FFmpeg disponible")
-        return True
-    
-    print("⚠️ FFmpeg no encontrado en el PATH")
-    print("📋 FFmpeg es necesario para convertir audio a MP3")
-    print("🔧 Instrucciones de instalación disponibles en la configuración")
-    return False
-
 def setup_ssl_certificates():
     """Configurar certificados SSL para descargas de portadas"""
     try:
-        import ssl
         import certifi
         
         # Configurar contexto SSL con certificados de certifi
-        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        # ssl_context = ssl.create_default_context(cafile=certifi.where())
         
         # Configurar variables de entorno para requests/urllib
         os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
@@ -86,25 +73,18 @@ def check_spotify_credentials():
             os.environ.get('SPOTIPY_CLIENT_SECRET'))
 
 def check_assets():
-    """Verificar que los assets/iconos estén disponibles"""
-    assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
-    required_assets = [
-        'icon.ico',
-        'icon_console.ico', 
-        'folder_cancel.svg',
-        'folder_download.svg',
-        'folder_open.svg',
-        'folder_select.svg'
-    ]
-    
+    """Verificar que los assets/iconos estén disponibles según la GUI"""
+    from m4a_downloader.gui.config_dialog import ICON_PATHS
+
+    icon_paths = list(ICON_PATHS.values())
     missing_assets = []
-    for asset in required_assets:
-        asset_path = os.path.join(assets_dir, asset)
-        if not os.path.exists(asset_path):
-            missing_assets.append(asset)
-    
+    for path in icon_paths:
+        abs_path = os.path.abspath(path)
+        if not os.path.exists(abs_path):
+            missing_assets.append(abs_path)
+
     if missing_assets:
-        print(f"⚠️ Assets faltantes en carpeta assets/: {', '.join(missing_assets)}")
+        print(f"⚠️ Assets faltantes: {', '.join(missing_assets)}")
         print("La aplicación funcionará pero sin algunos iconos")
     else:
         print("✅ Todos los assets encontrados")
@@ -113,9 +93,6 @@ def show_dependencies_status():
     """Mostrar estado de todas las dependencias"""
     print("\n🔍 Verificando dependencias...")
     print("=" * 50)
-    
-    # FFmpeg
-    ffmpeg_ok = check_ffmpeg()
     
     # SSL/Certificados
     ssl_ok = setup_ssl_certificates()
@@ -134,8 +111,6 @@ def show_dependencies_status():
     
     # Resumen
     issues = []
-    if not ffmpeg_ok:
-        issues.append("FFmpeg no está instalado")
     if not ssl_ok:
         issues.append("Certificados SSL no configurados")
     if not spotify_ok:
@@ -181,26 +156,18 @@ def main():
             print("\n📋 Más info: https://developer.spotify.com/dashboard/")
             sys.exit(1)
         
-        if not check_ffmpeg():
-            print("❌ Error: FFmpeg no está instalado.")
-            print("📋 Instala FFmpeg para continuar:")
-            print("Windows: https://www.gyan.dev/ffmpeg/builds/")
-            print("macOS: brew install ffmpeg")
-            print("Linux: sudo apt install ffmpeg")
-            sys.exit(1)
-        
         if args.url:
             # Descarga directa CLI
             try:
                 print(f"🎵 Descargando: {args.url}")
-                from morphydownloader.cli import download
+                from m4a_downloader.cli import download
                 download(args.url, args.output)
             except Exception as e:
                 print(f"❌ Error: {e}")
                 sys.exit(1)
         else:
             # CLI interactivo
-            from morphydownloader.cli import app as cli_app
+            from m4a_downloader.cli import app as cli_app
             cli_app()
     else:
         # Modo GUI (por defecto)
@@ -210,12 +177,12 @@ def main():
             app.setApplicationVersion("1.0.0")
             
             # Cargar configuración guardada si existe
-            from morphydownloader.gui.config_dialog import load_saved_config, should_show_config
+            from m4a_downloader.gui.config_dialog import load_saved_config, should_show_config
             load_saved_config()
             
             # Mostrar diálogo de configuración si es necesario
             if should_show_config():
-                from morphydownloader.gui.config_dialog import ConfigDialog
+                from m4a_downloader.gui.config_dialog import ConfigDialog
                 config_dialog = ConfigDialog()
                 if config_dialog.exec() != QDialog.Accepted:
                     print("❌ Configuración cancelada")
@@ -226,10 +193,6 @@ def main():
             
             if not check_spotify_credentials():
                 critical_issues.append("Credenciales de Spotify no configuradas")
-            
-            if not check_ffmpeg():
-                # FFmpeg no es crítico, solo mostrar warning
-                print("⚠️ Advertencia: FFmpeg no encontrado - algunas descargas podrían fallar")
             
             if critical_issues:
                 QMessageBox.critical(
@@ -242,7 +205,7 @@ def main():
                 sys.exit(1)
             
             # Lanzar GUI principal
-            from morphydownloader.gui.qt_gui import MorphyDownloaderQt
+            from m4a_downloader.gui.qt_gui import MorphyDownloaderQt
             window = MorphyDownloaderQt()
             window.show()
             

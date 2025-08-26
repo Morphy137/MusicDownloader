@@ -1,73 +1,46 @@
-# morphydownloader/gui/config_dialog.py - Ventana de configuración mejorada con FFmpeg
-
+# morphydownloader/gui/config_dialog.py
 import os
 import sys
-import shutil
-import subprocess
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-    QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, QFileDialog,
-    QProgressBar, QGroupBox, QFrame
+    QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, QFileDialog
 )
-from PySide6.QtGui import QFont, QPixmap, QIcon, QDesktopServices, QTextCursor
-from PySide6.QtCore import Qt, QUrl, QSettings, QSize, QThread, Signal
+from PySide6.QtGui import QFont, QIcon, QDesktopServices
+from PySide6.QtCore import Qt, QUrl, QSettings
 from ..config import Config
 
-class FFmpegInstallThread(QThread):
-    """Thread para verificar FFmpeg sin bloquear UI"""
-    status_updated = Signal(str, str)  # message, color
-    finished_check = Signal(bool, str)  # found, path
-    
-    def run(self):
-        self.status_updated.emit("🔍 Verificando FFmpeg...", "#888888")
-        
-        # Verificar en PATH
-        ffmpeg_path = shutil.which('ffmpeg') or shutil.which('ffmpeg.exe')
-        if ffmpeg_path:
-            self.status_updated.emit(f"✅ FFmpeg encontrado en: {ffmpeg_path}", "#2ecc71")
-            self.finished_check.emit(True, ffmpeg_path)
-            return
-        
-        # Verificar en ubicaciones comunes de Windows
-        if sys.platform.startswith('win'):
-            common_paths = [
-                r"C:\ffmpeg\bin\ffmpeg.exe",
-                r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-                r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
-                os.path.expanduser(r"~\ffmpeg\bin\ffmpeg.exe"),
-                os.path.join(os.path.dirname(sys.executable), "ffmpeg.exe")
-            ]
-            
-            for path in common_paths:
-                if os.path.exists(path):
-                    self.status_updated.emit(f"✅ FFmpeg encontrado en: {path}", "#2ecc71")
-                    self.finished_check.emit(True, path)
-                    return
-        
-        # No encontrado
-        self.status_updated.emit("❌ FFmpeg no encontrado", "#e74c3c")
-        self.finished_check.emit(False, "")
+# Configuración de rutas de iconos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_PATH = os.path.join(BASE_DIR, '..', '..', 'assets')
+ICONS_BASE_PATH = os.path.join(ASSETS_PATH, 'icons')
+ICON_PATHS = {
+    'app_icon': os.path.join(ASSETS_PATH, 'icon.ico'),
+    'settings': os.path.join(ICONS_BASE_PATH, 'settings.svg'),
+    'folder_browse': os.path.join(ICONS_BASE_PATH, 'folder-browse.svg'),
+    'test': os.path.join(ICONS_BASE_PATH, 'test.svg'),
+    'save': os.path.join(ICONS_BASE_PATH, 'save.svg'),
+    'cancel': os.path.join(ICONS_BASE_PATH, 'cancel.svg'),
+    'web': os.path.join(ICONS_BASE_PATH, 'web.svg')
+}
 
 class ConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.settings = QSettings('MorphyDownloader', 'Config')
-        self.ffmpeg_thread = None
         self.init_ui()
         self.load_settings()
         
     def init_ui(self):
         self.setWindowTitle('Configuración de MorphyDownloader')
-        self.setFixedSize(700, 600)
+        
+        self.setMinimumSize(650, 900)
+        self.resize(650, 900)
         self.setModal(True)
         
-        # Icon - Usar icon.png o icon.ico
-        try:
-            icon_path = Config.get_asset_path('icon.ico')
-            if os.path.exists(icon_path):
-                self.setWindowIcon(QIcon(icon_path))
-        except Exception:
-            pass  # Si no encuentra el icono, continúa sin él
+        # Configurar icono de aplicación
+        app_icon_path = Config.get_asset_path(ICON_PATHS['app_icon'])
+        if os.path.exists(app_icon_path):
+            self.setWindowIcon(QIcon(app_icon_path))
         
         layout = QVBoxLayout()
         layout.setSpacing(20)
@@ -79,40 +52,37 @@ class ConfigDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
-        subtitle_label = QLabel('Configuración inicial - Dependencias y credenciales')
+        subtitle_label = QLabel('Configuración inicial - Solo necesitas credenciales de Spotify')
         subtitle_label.setFont(QFont('Inter', 12))
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setStyleSheet('color: #888;')
         layout.addWidget(subtitle_label)
         
-        # Tabs
+        # Tabs de configuración
         tabs = QTabWidget()
         
-        # Tab 1: FFmpeg
-        ffmpeg_widget = self.create_ffmpeg_tab()
-        tabs.addTab(ffmpeg_widget, '🎬 FFmpeg')
-        
-        # Tab 2: Credenciales
         cred_widget = self.create_credentials_tab()
-        tabs.addTab(cred_widget, '🔑 Credenciales')
+        tabs.addTab(cred_widget, 'Credenciales')
         
-        # Tab 3: Configuraciones adicionales
         settings_widget = self.create_settings_tab()
-        tabs.addTab(settings_widget, '⚙️ Configuración')
+        tabs.addTab(settings_widget, 'Configuración')
         
         layout.addWidget(tabs)
         
-        # Botones inferiores
+        # Botones de acción
         button_layout = QHBoxLayout()
         
-        test_btn = QPushButton('🧪 Probar Todo')
-        test_btn.clicked.connect(self.test_all_configuration)
+        test_btn = QPushButton('Probar Credenciales')
+        self._set_icon_or_text(test_btn, 'test', '🧪 Probar Credenciales')
+        test_btn.clicked.connect(self.test_credentials_only)
         
-        save_btn = QPushButton('💾 Guardar y Continuar')
+        save_btn = QPushButton('Guardar y Continuar')
+        self._set_icon_or_text(save_btn, 'save', '💾 Guardar y Continuar')
         save_btn.clicked.connect(self.save_and_close)
         save_btn.setDefault(True)
         
-        cancel_btn = QPushButton('❌ Cancelar')
+        cancel_btn = QPushButton('Cancelar')
+        self._set_icon_or_text(cancel_btn, 'cancel', '❌ Cancelar')
         cancel_btn.clicked.connect(self.reject)
         
         button_layout.addWidget(test_btn)
@@ -124,102 +94,30 @@ class ConfigDialog(QDialog):
         self.setLayout(layout)
         
         self.setup_styling()
-        
-        # Verificar FFmpeg al abrir
-        self.check_ffmpeg_status()
-        
-    def create_ffmpeg_tab(self):
-        """Crear tab de configuración de FFmpeg"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        
-        # Descripción de FFmpeg
-        desc_label = QLabel(
-            'FFmpeg es necesario para convertir el audio descargado a MP3 con buena calidad.'
-        )
-        desc_label.setFont(QFont('Inter', 11))
-        desc_label.setWordWrap(True)
-        layout.addWidget(desc_label)
-        
-        # Estado actual
-        status_group = QGroupBox("Estado Actual")
-        status_layout = QVBoxLayout(status_group)
-        
-        self.ffmpeg_status_label = QLabel('🔍 Verificando...')
-        self.ffmpeg_status_label.setFont(QFont('JetBrains Mono', 10))
-        status_layout.addWidget(self.ffmpeg_status_label)
-        
-        # Botón verificar
-        verify_btn = QPushButton('🔄 Verificar FFmpeg')
-        verify_btn.clicked.connect(self.check_ffmpeg_status)
-        status_layout.addWidget(verify_btn)
-        
-        layout.addWidget(status_group)
-        
-        # Instrucciones de instalación
-        install_group = QGroupBox("Instalación Manual")
-        install_layout = QVBoxLayout(install_group)
-        
-        instructions_text = QTextEdit()
-        instructions_text.setReadOnly(True)
-        instructions_text.setMaximumHeight(200)
-        instructions_text.setHtml("""
-        <div style="line-height: 1.6; font-family: 'Inter', sans-serif;">
-        <h3 style="color: #DC143C; margin-top: 0;">📋 Pasos para instalar FFmpeg:</h3>
-        
-        <h4>🪟 Windows:</h4>
-        <ol>
-            <li>Ve a <a href="https://www.gyan.dev/ffmpeg/builds/">gyan.dev/ffmpeg/builds</a></li>
-            <li>Descarga <b>"release builds" → "ffmpeg-release-essentials.zip"</b></li>
-            <li>Extrae el archivo ZIP en <b>C:\\ffmpeg\\</b></li>
-            <li>Agrega <b>C:\\ffmpeg\\bin</b> a las variables de entorno PATH:
-                <ul>
-                    <li>Busca "Variables de entorno" en el menú inicio</li>
-                    <li>Clic en "Variables de entorno..."</li>
-                    <li>Selecciona "Path" → "Editar" → "Nuevo"</li>
-                    <li>Agrega: <b>C:\\ffmpeg\\bin</b></li>
-                    <li>Acepta y reinicia MorphyDownloader</li>
-                </ul>
-            </li>
-        </ol>
-        
-        <h4>🍎 macOS:</h4>
-        <pre style="background: #2a2f36; padding: 10px; border-radius: 6px; color: #e1e1e1;">brew install ffmpeg</pre>
-        
-        <h4>🐧 Linux:</h4>
-        <pre style="background: #2a2f36; padding: 10px; border-radius: 6px; color: #e1e1e1;">sudo apt install ffmpeg  # Ubuntu/Debian
-sudo dnf install ffmpeg  # Fedora
-sudo pacman -S ffmpeg   # Arch</pre>
-        </div>
-        """)
-        install_layout.addWidget(instructions_text)
-        
-        # Botones de ayuda
-        buttons_layout = QHBoxLayout()
-        
-        download_btn = QPushButton('🌐 Descargar FFmpeg (Windows)')
-        download_btn.clicked.connect(lambda: QDesktopServices.openUrl(
-            QUrl('https://www.gyan.dev/ffmpeg/builds/')
-        ))
-        
-        path_btn = QPushButton('📁 Configurar PATH (Windows)')
-        path_btn.clicked.connect(self.show_path_instructions)
-        
-        buttons_layout.addWidget(download_btn)
-        buttons_layout.addWidget(path_btn)
-        install_layout.addLayout(buttons_layout)
-        
-        layout.addWidget(install_group)
-        layout.addStretch()
-        
-        return widget
+    
+    def _set_icon_or_text(self, button, icon_key, fallback_text):
+        icon_path = Config.get_asset_path(ICON_PATHS.get(icon_key, ''))
+        if os.path.exists(icon_path):
+            button.setIcon(QIcon(icon_path))
+            button.setText('')  # Solo icono, sin texto ni emoji
+        else:
+            button.setText(fallback_text)
     
     def create_credentials_tab(self):
-        """Crear tab de credenciales (código existente mejorado)"""
+        """Crear pestaña de configuración de credenciales de Spotify"""
         cred_widget = QWidget()
         cred_layout = QVBoxLayout(cred_widget)
         
-        # Instrucciones
+        welcome_label = QLabel(
+            'MorphyDownloader descarga audio en formato M4A de alta calidad '
+            'directamente desde YouTube, sin necesidad de conversión.\n\n'
+            'Solo necesitas configurar tus credenciales de Spotify:'
+        )
+        welcome_label.setFont(QFont('Inter', 11))
+        welcome_label.setWordWrap(True)
+        welcome_label.setStyleSheet('color: #2ecc71; background: #1a2f1a; padding: 15px; border-radius: 8px;')
+        cred_layout.addWidget(welcome_label)
+        
         instructions_label = QLabel(
             'Para usar MorphyDownloader necesitas crear una aplicación en Spotify Developer:'
         )
@@ -227,12 +125,12 @@ sudo pacman -S ffmpeg   # Arch</pre>
         instructions_label.setWordWrap(True)
         cred_layout.addWidget(instructions_label)
         
-        # Pasos
+        # Instrucciones paso a paso
         steps_text = QTextEdit()
         steps_text.setReadOnly(True)
-        steps_text.setMaximumHeight(150)
+        steps_text.setFixedHeight(200)
         steps_text.setHtml("""
-        <ol style="line-height: 1.5;">
+        <ol style="line-height: 1.6;">
             <li>Ve a <a href="https://developer.spotify.com/dashboard/">Spotify Developer Dashboard</a></li>
             <li>Inicia sesión con tu cuenta de Spotify</li>
             <li>Haz clic en "Create App"</li>
@@ -250,13 +148,14 @@ sudo pacman -S ffmpeg   # Arch</pre>
         cred_layout.addWidget(steps_text)
         
         # Botón para abrir Spotify Developer
-        open_spotify_btn = QPushButton('🌐 Abrir Spotify Developer Dashboard')
+        open_spotify_btn = QPushButton('Abrir Spotify Developer Dashboard')
+        self._set_icon_or_text(open_spotify_btn, 'web', '🌐 Abrir Spotify Developer Dashboard')
         open_spotify_btn.clicked.connect(lambda: QDesktopServices.openUrl(
             QUrl('https://developer.spotify.com/dashboard/')
         ))
         cred_layout.addWidget(open_spotify_btn)
         
-        # Campos de entrada
+        # Campos de entrada para credenciales
         cred_layout.addWidget(QLabel('Client ID:'))
         self.client_id_entry = QLineEdit()
         self.client_id_entry.setPlaceholderText('Pega aquí tu Client ID de Spotify...')
@@ -268,29 +167,36 @@ sudo pacman -S ffmpeg   # Arch</pre>
         self.client_secret_entry.setEchoMode(QLineEdit.EchoMode.Password)
         cred_layout.addWidget(self.client_secret_entry)
         
-        # Checkbox para mostrar/ocultar secret
+        # Checkbox para mostrar/ocultar client secret
         self.show_secret_cb = QCheckBox('Mostrar Client Secret')
         self.show_secret_cb.stateChanged.connect(self.toggle_secret_visibility)
         cred_layout.addWidget(self.show_secret_cb)
         
+        cred_layout.addStretch()
         return cred_widget
     
     def create_settings_tab(self):
-        """Crear tab de configuraciones adicionales"""
+        """Crear pestaña de configuraciones adicionales"""
         settings_widget = QWidget()
         settings_layout = QVBoxLayout(settings_widget)
         
-        settings_layout.addWidget(QLabel('Calidad de audio:'))
-        self.quality_entry = QLineEdit('192')
-        self.quality_entry.setPlaceholderText('128, 192, 256, 320')
-        settings_layout.addWidget(self.quality_entry)
+        format_info = QLabel(
+            '🎵 MorphyDownloader descarga audio en formato M4A de alta calidad.\n'
+            'Este formato es compatible con todos los dispositivos y reproductores modernos, '
+            'incluyendo iPhone, Android, Windows, Mac y Linux.'
+        )
+        format_info.setFont(QFont('Inter', 11))
+        format_info.setWordWrap(True)
+        format_info.setStyleSheet('color: #3498db; background: #1a2a3a; padding: 15px; border-radius: 8px;')
+        settings_layout.addWidget(format_info)
         
         settings_layout.addWidget(QLabel('Directorio de descarga por defecto:'))
         default_output_layout = QHBoxLayout()
         self.output_dir_entry = QLineEdit(os.path.abspath('music'))
         
-        # Botón browse con icono
-        browse_btn = QPushButton('📁')
+        # Botón para seleccionar carpeta
+        browse_btn = QPushButton()
+        self._set_icon_or_text(browse_btn, 'folder_browse', '📁')
         browse_btn.setFixedWidth(40)
         browse_btn.setToolTip('Seleccionar carpeta')
         browse_btn.clicked.connect(self.browse_output_dir)
@@ -299,7 +205,7 @@ sudo pacman -S ffmpeg   # Arch</pre>
         default_output_layout.addWidget(browse_btn)
         settings_layout.addLayout(default_output_layout)
         
-        # Checkbox para no mostrar esta ventana de nuevo
+        # Opción para no mostrar configuración al inicio
         self.dont_show_again_cb = QCheckBox('No mostrar esta configuración al inicio')
         settings_layout.addWidget(self.dont_show_again_cb)
         
@@ -307,96 +213,32 @@ sudo pacman -S ffmpeg   # Arch</pre>
         
         return settings_widget
     
-    def check_ffmpeg_status(self):
-        """Verificar estado de FFmpeg"""
-        if self.ffmpeg_thread and self.ffmpeg_thread.isRunning():
-            return
-            
-        self.ffmpeg_thread = FFmpegInstallThread()
-        self.ffmpeg_thread.status_updated.connect(self.update_ffmpeg_status)
-        self.ffmpeg_thread.finished_check.connect(self.handle_ffmpeg_result)
-        self.ffmpeg_thread.start()
-    
-    def update_ffmpeg_status(self, message, color):
-        """Actualizar status de FFmpeg"""
-        self.ffmpeg_status_label.setText(f'<span style="color: {color};">{message}</span>')
-    
-    def handle_ffmpeg_result(self, found, path):
-        """Manejar resultado de verificación de FFmpeg"""
-        if found:
-            self.settings.setValue('ffmpeg_path', path)
-            self.settings.setValue('ffmpeg_available', True)
-        else:
-            self.settings.setValue('ffmpeg_available', False)
-    
-    def show_path_instructions(self):
-        """Mostrar instrucciones detalladas para configurar PATH"""
-        QMessageBox.information(
-            self, 
-            'Configurar PATH en Windows',
-            '🔧 Pasos detallados para agregar FFmpeg al PATH:\n\n'
-            '1. Presiona Win + R, escribe "sysdm.cpl" y presiona Enter\n'
-            '2. Ve a la pestaña "Opciones avanzadas"\n'
-            '3. Clic en "Variables de entorno..."\n'
-            '4. En "Variables del sistema", busca y selecciona "Path"\n'
-            '5. Clic en "Editar..."\n'
-            '6. Clic en "Nuevo"\n'
-            '7. Escribe: C:\\ffmpeg\\bin\n'
-            '8. Clic "Aceptar" en todas las ventanas\n'
-            '9. Reinicia MorphyDownloader\n\n'
-            '💡 Tip: También puedes buscar "Variables de entorno" en el menú inicio.'
-        )
-    
     def toggle_secret_visibility(self, state):
-        """Alternar visibilidad del Client Secret"""
+        """Alternar entre mostrar/ocultar el Client Secret"""
         if state == Qt.CheckState.Checked.value:
             self.client_secret_entry.setEchoMode(QLineEdit.EchoMode.Normal)
         else:
             self.client_secret_entry.setEchoMode(QLineEdit.EchoMode.Password)
     
     def browse_output_dir(self):
-        """Seleccionar directorio de salida"""
+        """Abrir diálogo para seleccionar directorio de descarga"""
         folder = QFileDialog.getExistingDirectory(self, 'Seleccionar directorio de descarga')
         if folder:
             self.output_dir_entry.setText(folder)
     
-    def test_all_configuration(self):
-        """Probar toda la configuración"""
-        # Test FFmpeg
-        ffmpeg_ok = self.test_ffmpeg()
-        
-        # Test Spotify
-        spotify_ok = self.test_credentials()
-        
-        if ffmpeg_ok and spotify_ok:
+    def test_credentials_only(self):
+        """Probar únicamente las credenciales de Spotify"""
+        if self.test_credentials():
             QMessageBox.information(self, '✅ ¡Éxito!', 
-                                  '¡Toda la configuración está correcta!\n'
+                                  '¡Las credenciales de Spotify están correctas!\n'
                                   'MorphyDownloader está listo para usar.')
         else:
-            issues = []
-            if not ffmpeg_ok:
-                issues.append('• FFmpeg no está disponible')
-            if not spotify_ok:
-                issues.append('• Credenciales de Spotify incorrectas')
-            
-            QMessageBox.warning(self, '⚠️ Problemas encontrados', 
-                              f'Se encontraron los siguientes problemas:\n\n' + 
-                              '\n'.join(issues) + 
-                              '\n\nPor favor, corrige estos problemas antes de continuar.')
-    
-    def test_ffmpeg(self):
-        """Probar FFmpeg"""
-        try:
-            result = subprocess.run(['ffmpeg', '-version'], 
-                                  capture_output=True, 
-                                  text=True, 
-                                  timeout=5)
-            return result.returncode == 0
-        except:
-            return False
+            QMessageBox.warning(self, '❌ Error', 
+                              'Las credenciales de Spotify son incorrectas.\n'
+                              'Verifica tu Client ID y Client Secret.')
     
     def test_credentials(self):
-        """Probar las credenciales de Spotify"""
+        """Validar conexión con las credenciales de Spotify"""
         client_id = self.client_id_entry.text().strip()
         client_secret = self.client_secret_entry.text().strip()
         
@@ -404,19 +246,18 @@ sudo pacman -S ffmpeg   # Arch</pre>
             return False
         
         try:
-            # Configurar variables de entorno temporalmente
+            # Configurar variables de entorno temporalmente para la prueba
             old_id = os.environ.get('SPOTIPY_CLIENT_ID')
             old_secret = os.environ.get('SPOTIPY_CLIENT_SECRET')
             
             os.environ['SPOTIPY_CLIENT_ID'] = client_id
             os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
             
-            # Probar conexión
             try:
                 from ..core.spotify_client import SpotifyClient
                 spotify = SpotifyClient()
                 
-                # Hacer una consulta simple para verificar
+                # Hacer una consulta de prueba
                 test_track = 'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh'
                 track_info = spotify.get_track_info(test_track)
                 return True
@@ -424,7 +265,7 @@ sudo pacman -S ffmpeg   # Arch</pre>
             except Exception:
                 return False
             finally:
-                # Restaurar variables anteriores
+                # Restaurar variables de entorno anteriores
                 if old_id:
                     os.environ['SPOTIPY_CLIENT_ID'] = old_id
                 else:
@@ -438,24 +279,22 @@ sudo pacman -S ffmpeg   # Arch</pre>
             return False
     
     def save_and_close(self):
-        """Guardar configuración y cerrar"""
+        """Guardar configuración y cerrar diálogo"""
         client_id = self.client_id_entry.text().strip()
         client_secret = self.client_secret_entry.text().strip()
         
-        # Verificar configuración mínima
         if not client_id or not client_secret:
             QMessageBox.warning(self, 'Error', 
                               'Por favor completa las credenciales de Spotify')
             return
         
-        # Verificar FFmpeg
-        if not self.test_ffmpeg():
+        # Validar credenciales antes de guardar
+        if not self.test_credentials():
             reply = QMessageBox.question(
                 self, 
-                '⚠️ FFmpeg no encontrado',
-                'FFmpeg no está instalado o no se encuentra en el PATH.\n'
-                'Sin FFmpeg, es posible que las descargas no funcionen correctamente.\n\n'
-                '¿Deseas continuar de todos modos?',
+                '⚠️ Credenciales incorrectas',
+                'Las credenciales de Spotify parecen incorrectas.\n'
+                '¿Deseas guardar de todos modos?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -463,10 +302,9 @@ sudo pacman -S ffmpeg   # Arch</pre>
             if reply == QMessageBox.No:
                 return
         
-        # Guardar en QSettings
+        # Guardar configuración en QSettings
         self.settings.setValue('spotify_client_id', client_id)
         self.settings.setValue('spotify_client_secret', client_secret)
-        self.settings.setValue('audio_quality', self.quality_entry.text())
         self.settings.setValue('default_output_dir', self.output_dir_entry.text())
         self.settings.setValue('dont_show_config', self.dont_show_again_cb.isChecked())
         
@@ -476,18 +314,16 @@ sudo pacman -S ffmpeg   # Arch</pre>
         
         QMessageBox.information(self, '✅ ¡Configuración Guardada!', 
                               'La configuración se ha guardado correctamente.\n'
-                              'Ya puedes usar MorphyDownloader.')
+                              'Ya puedes usar MorphyDownloader para descargar audio M4A de alta calidad.')
         
         self.accept()
     
     def load_settings(self):
-        """Cargar configuración guardada"""
+        """Cargar configuración guardada previamente"""
         if self.settings.value('spotify_client_id'):
             self.client_id_entry.setText(self.settings.value('spotify_client_id'))
         if self.settings.value('spotify_client_secret'):
             self.client_secret_entry.setText(self.settings.value('spotify_client_secret'))
-        if self.settings.value('audio_quality'):
-            self.quality_entry.setText(self.settings.value('audio_quality'))
         if self.settings.value('default_output_dir'):
             self.output_dir_entry.setText(self.settings.value('default_output_dir'))
         
@@ -495,7 +331,7 @@ sudo pacman -S ffmpeg   # Arch</pre>
             self.dont_show_again_cb.setChecked(True)
     
     def setup_styling(self):
-        """Aplicar estilos consistentes con la aplicación principal"""
+        """Aplicar estilos CSS consistentes con la aplicación principal"""
         self.setStyleSheet(f"""
             QDialog {{
                 background: {Config.BG_COLOR};
@@ -576,23 +412,11 @@ sudo pacman -S ffmpeg   # Arch</pre>
                 background: {Config.PRIMARY_COLOR};
                 color: white;
             }}
-            QGroupBox {{
-                font-weight: 600;
-                border: 2px solid #2a2f36;
-                border-radius: 8px;
-                margin: 10px 0px;
-                padding-top: 10px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }}
         """)
 
-# Funciones de utilidad (sin cambios)
+# Funciones de utilidad para la configuración
 def should_show_config():
-    """Verificar si se debe mostrar la ventana de configuración"""
+    """Determinar si se debe mostrar la ventana de configuración al inicio"""
     settings = QSettings('MorphyDownloader', 'Config')
     
     if settings.value('dont_show_config', False, type=bool):
@@ -609,7 +433,7 @@ def should_show_config():
     return False
 
 def load_saved_config():
-    """Cargar configuración guardada al inicio"""
+    """Cargar configuración guardada al iniciar la aplicación"""
     settings = QSettings('MorphyDownloader', 'Config')
     
     if settings.value('spotify_client_id') and settings.value('spotify_client_secret'):
