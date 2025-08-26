@@ -17,7 +17,7 @@ def download_cli(
     url: str = typer.Option(..., "--url", "-u", help="URL de Spotify (track o playlist)"),
     output: str = typer.Option("music", help="Directorio de salida")
 ):
-    """Descarga canciones o playlists de Spotify como mp3 (CLI)."""
+    """Descarga canciones o playlists de Spotify como m4a (CLI)."""
     return download(url, output)
 
 def download(url, output="music", progress_callback=None, log_callback=None):
@@ -67,7 +67,7 @@ def download(url, output="music", progress_callback=None, log_callback=None):
         downloaded = 0
         total = len(songs)
         
-        # Nueva función para descargar una sola canción (para paralelización)
+        # descargar una sola canción (para paralelización)
         def download_song(track_info, i):
             title = re.sub(r'[\\/:*?"<>|]', '', track_info['track_title'])
             artist = re.sub(r'[\\/:*?"<>|]', '', track_info['artist_name'])

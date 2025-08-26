@@ -48,11 +48,10 @@ def install_requirements():
 def setup_ssl_certificates():
     """Configurar certificados SSL para descargas de portadas"""
     try:
-        import ssl
         import certifi
         
         # Configurar contexto SSL con certificados de certifi
-        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        # ssl_context = ssl.create_default_context(cafile=certifi.where())
         
         # Configurar variables de entorno para requests/urllib
         os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
@@ -74,25 +73,18 @@ def check_spotify_credentials():
             os.environ.get('SPOTIPY_CLIENT_SECRET'))
 
 def check_assets():
-    """Verificar que los assets/iconos estén disponibles"""
-    assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
-    required_assets = [
-        'icon.ico',
-        'icon_console.ico', 
-        'folder_cancel.svg',
-        'folder_download.svg',
-        'folder_open.svg',
-        'folder_select.svg'
-    ]
-    
+    """Verificar que los assets/iconos estén disponibles según la GUI"""
+    from morphydownloader.gui.config_dialog import ICON_PATHS
+
+    icon_paths = list(ICON_PATHS.values())
     missing_assets = []
-    for asset in required_assets:
-        asset_path = os.path.join(assets_dir, asset)
-        if not os.path.exists(asset_path):
-            missing_assets.append(asset)
-    
+    for path in icon_paths:
+        abs_path = os.path.abspath(path)
+        if not os.path.exists(abs_path):
+            missing_assets.append(abs_path)
+
     if missing_assets:
-        print(f"⚠️ Assets faltantes en carpeta assets/: {', '.join(missing_assets)}")
+        print(f"⚠️ Assets faltantes: {', '.join(missing_assets)}")
         print("La aplicación funcionará pero sin algunos iconos")
     else:
         print("✅ Todos los assets encontrados")

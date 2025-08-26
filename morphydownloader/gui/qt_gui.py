@@ -19,10 +19,10 @@ ICONS_BASE_PATH = os.path.join(ASSETS_PATH, 'icons')
 ICON_PATHS = {
     'app_icon': os.path.join(ASSETS_PATH, 'icon.ico'),
     'settings': os.path.join(ICONS_BASE_PATH, 'settings.svg'),
-    'folder_select': os.path.join(ICONS_BASE_PATH, 'folder_select.svg'),
-    'folder_download': os.path.join(ICONS_BASE_PATH, 'folder_download.svg'),
-    'folder_cancel': os.path.join(ICONS_BASE_PATH, 'folder_cancel.svg'),
-    'folder_open': os.path.join(ICONS_BASE_PATH, 'folder_open.svg')
+    'folder_select': os.path.join(ICONS_BASE_PATH, 'folder-select.svg'),
+    'folder_download': os.path.join(ICONS_BASE_PATH, 'folder-download.svg'),
+    'folder_cancel': os.path.join(ICONS_BASE_PATH, 'cancel.svg'),
+    'folder_open': os.path.join(ICONS_BASE_PATH, 'folder-open.svg')
 }
 
 # Configurar logging
@@ -141,9 +141,9 @@ class MorphyDownloaderQt(QWidget):
         # Header con título y botón de configuración
         header_layout = QHBoxLayout()
         
-        title_label = QLabel('MorphyDownloader')
-        title_label.setFont(QFont('Inter', 18, QFont.Bold))
-        title_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
+        title_label = QLabel('M4A Downloader')
+        title_label.setFont(QFont('Segoe UI', 24, QFont.Bold))
+        title_label.setStyleSheet(f"color: {PRIMARY_COLOR}; font-weight: 900;")
         
         config_btn = QPushButton()
         self._set_icon_or_text(config_btn, 'settings', '⚙️')
@@ -298,7 +298,7 @@ class MorphyDownloaderQt(QWidget):
             QWidget {{ 
                 background: {BG_COLOR}; 
                 color: {FG_COLOR};
-                font-family: 'Inter', 'Segoe UI', sans-serif;
+                font-family: 'Segoe UI', 'Inter', sans-serif;
             }}
             QLineEdit {{ 
                 background: {ENTRY_BG}; 

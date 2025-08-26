@@ -16,7 +16,7 @@ ICONS_BASE_PATH = os.path.join(ASSETS_PATH, 'icons')
 ICON_PATHS = {
     'app_icon': os.path.join(ASSETS_PATH, 'icon.ico'),
     'settings': os.path.join(ICONS_BASE_PATH, 'settings.svg'),
-    'folder_browse': os.path.join(ICONS_BASE_PATH, 'folder_browse.svg'),
+    'folder_browse': os.path.join(ICONS_BASE_PATH, 'folder-browse.svg'),
     'test': os.path.join(ICONS_BASE_PATH, 'test.svg'),
     'save': os.path.join(ICONS_BASE_PATH, 'save.svg'),
     'cancel': os.path.join(ICONS_BASE_PATH, 'cancel.svg'),
@@ -96,11 +96,10 @@ class ConfigDialog(QDialog):
         self.setup_styling()
     
     def _set_icon_or_text(self, button, icon_key, fallback_text):
-        """Establece icono o texto de respaldo para botones"""
         icon_path = Config.get_asset_path(ICON_PATHS.get(icon_key, ''))
         if os.path.exists(icon_path):
             button.setIcon(QIcon(icon_path))
-            button.setText(fallback_text.split(' ', 1)[-1])  # Texto sin emoji
+            button.setText('')  # Solo icono, sin texto ni emoji
         else:
             button.setText(fallback_text)
     
