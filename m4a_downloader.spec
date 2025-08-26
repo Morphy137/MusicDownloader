@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# morphydownloader.spec - Configuración optimizada para PyInstaller (SIN FFmpeg)
+# m4a_downloader.spec - Configuración optimizada para PyInstaller (SIN FFmpeg)
 
 import os
 import sys
@@ -231,7 +231,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='MorphyDownloader',
+    name='M4ADownloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -260,7 +260,7 @@ exe_console = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='MorphyDownloader-Console',
+    name='M4ADownloader-Console',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

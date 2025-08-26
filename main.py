@@ -74,7 +74,7 @@ def check_spotify_credentials():
 
 def check_assets():
     """Verificar que los assets/iconos estén disponibles según la GUI"""
-    from morphydownloader.gui.config_dialog import ICON_PATHS
+    from m4a_downloader.gui.config_dialog import ICON_PATHS
 
     icon_paths = list(ICON_PATHS.values())
     missing_assets = []
@@ -160,14 +160,14 @@ def main():
             # Descarga directa CLI
             try:
                 print(f"🎵 Descargando: {args.url}")
-                from morphydownloader.cli import download
+                from m4a_downloader.cli import download
                 download(args.url, args.output)
             except Exception as e:
                 print(f"❌ Error: {e}")
                 sys.exit(1)
         else:
             # CLI interactivo
-            from morphydownloader.cli import app as cli_app
+            from m4a_downloader.cli import app as cli_app
             cli_app()
     else:
         # Modo GUI (por defecto)
@@ -177,12 +177,12 @@ def main():
             app.setApplicationVersion("1.0.0")
             
             # Cargar configuración guardada si existe
-            from morphydownloader.gui.config_dialog import load_saved_config, should_show_config
+            from m4a_downloader.gui.config_dialog import load_saved_config, should_show_config
             load_saved_config()
             
             # Mostrar diálogo de configuración si es necesario
             if should_show_config():
-                from morphydownloader.gui.config_dialog import ConfigDialog
+                from m4a_downloader.gui.config_dialog import ConfigDialog
                 config_dialog = ConfigDialog()
                 if config_dialog.exec() != QDialog.Accepted:
                     print("❌ Configuración cancelada")
@@ -205,7 +205,7 @@ def main():
                 sys.exit(1)
             
             # Lanzar GUI principal
-            from morphydownloader.gui.qt_gui import MorphyDownloaderQt
+            from m4a_downloader.gui.qt_gui import MorphyDownloaderQt
             window = MorphyDownloaderQt()
             window.show()
             

@@ -1,6 +1,6 @@
-# MorphyDownloader 🎵
+# M4A_Downloader 🎵
 
-**A modern, open-source tool to download songs, albums, or playlists from Spotify** as MP3 files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI).
+**A modern, open-source tool to download songs, albums, or playlists from Spotify** as high-quality M4A files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI). Now with a fully redesigned interface, button icons, and no ffmpeg dependency.
 
 ![MorphyDownloader GUI](assets/img/screnshot.png)
 
@@ -10,7 +10,7 @@
 
 1. Retrieves song, album, or playlist information from Spotify using the official API (you need your own credentials).
 2. Searches for the best YouTube match for each track using yt-dlp.
-3. Downloads the audio in the best available quality and converts it to MP3 using ffmpeg.
+3. Downloads the audio in the best available quality as M4A (no conversion or ffmpeg required).
 4. Adds full metadata and cover art from Spotify using mutagen.
 5. The process is fully automatic, robust, and logs progress clearly in both CLI and GUI.
 
@@ -28,17 +28,15 @@
 
 1. **Python 3.12 or higher** 🐍
 
-2. **ffmpeg** installed and in your PATH (download here)
-
-3. Install dependencies:
+2. Install dependencies:
 
    ```sh
    pip install -r requirements.txt
    ```
 
-4. Create an app in the Spotify Developer Dashboard and get your `Client ID` and `Client Secret`.
+3. Create an app in the Spotify Developer Dashboard and get your `Client ID` and `Client Secret`.
 
-5. Configure your credentials:
+4. Configure your credentials:
 
    - The program will guide you through the setup the first time you run it (recommended for most users).
    - Alternatively, you can set the following environment variables manually:
@@ -49,9 +47,9 @@
 
 ## 📥 Download (Pre-built Executable)
 
-You can download a pre-built `.exe` (and console version) from the GitHub releases section. No installation required—just run the executable and follow the setup instructions.
+You can download a pre-built `.exe` (and console version) from the GitHub releases section. No installation required—just run the executable and follow the setup instructions. The GUI now features icons for all buttons and a modern dark theme.
 
-![MorphyDownloader .EXE](assets/img/ejecutables.png)
+![M4A_Downloader .EXE](assets/img/ejecutables.png)
 
 ---
 
@@ -65,20 +63,20 @@ To launch the GUI:
 python main.py
 ```
 
-Paste your Spotify URL, choose the output folder, and track progress in real time.
+Paste your Spotify URL, choose the output folder, and track progress in real time. You can now change settings at any time using the configuration button.
 
 ### Command Line Interface (CLI)
 
 Example to download a playlist:
 
 ```sh
-python -m morphydownloader.cli --url "https://open.spotify.com/playlist/PLAYLIST_ID" --output music
+python -m m4a_downloader.cli --url "https://open.spotify.com/playlist/PLAYLIST_ID" --output music
 ```
 
 Main options:
 
 - `--url`: Spotify playlist, album, or track URL
-- `--output`: Output folder for MP3 files
+- `--output`: Output folder for M4A files
 
 ---
 
@@ -87,10 +85,10 @@ Main options:
 - `main.py`: Entry point. Launches the GUI by default or CLI if specified.
 - `morphydownloader/`: Main source code.
   - `cli.py`: CLI logic.
-  - `gui/qt_gui.py`: Qt graphical interface.
+  - `gui/qt_gui.py`: Qt graphical interface (now with dynamic sizing, not fixed size).
   - `core/`: Spotify, YouTube, and metadata integration modules.
   - `config.py`, `utils.py`: Utilities and configuration.
-- `assets/`: Icons and graphical resources.
+- `assets/`: Icons and graphical resources (now organized in specific folders).
 - `requirements.txt`: Python dependencies.
 
 ---
@@ -99,19 +97,22 @@ Main options:
 
 - yt-dlp (YouTube download/search)
 - spotipy (Spotify API)
-- mutagen (MP3 metadata)
+- mutagen (metadata for M4A)
 - PySide6 (Qt GUI)
 - typer (CLI)
 - rich (colored output)
-- ffmpeg (must be installed manually)
 
 ---
 
 ## ⚠️ Notes & Recommendations
 
 - The project is modular and easy to maintain or extend.
-- If you have issues with YouTube search, ensure you have the latest yt-dlp and ffmpeg.
+- If you have issues with YouTube search, ensure you have the latest yt-dlp.
 - Temporary files and tokens are regenerated automatically.
+- All buttons now use icons for a more modern look.
+- The interface color scheme has been updated for a better dark mode experience.
+- The window size is now dynamic and adapts to your screen.
+- You can change settings at any time from the GUI.
 - If you like this project, consider giving it a ⭐ on GitHub and sharing it!
 
 ---
