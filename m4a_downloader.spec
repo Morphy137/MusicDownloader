@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# m4a_downloader.spec - Configuración optimizada para PyInstaller (SIN FFmpeg)
+# m4a_downloader.spec - Configuración optimizada para PyInstaller (SIN FFmpeg incluido)
 
 import os
 import sys
@@ -124,7 +124,10 @@ a = Analysis(
         'pytest',
         'setuptools',
         'wheel',
-        'pip'
+        'pip',
+        # NO incluir FFmpeg - debe ser instalado por el usuario
+        'ffmpeg',
+        'ffmpeg-python',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -149,8 +152,8 @@ def filter_binaries(binaries):
         'Qt6PrintSupport',
         'api-ms-win',  # Windows API files
         'ucrtbase',    # Universal C Runtime
-        'ffmpeg',      # FFmpeg binaries - ya no necesario
-        'ffprobe',     # FFprobe - ya no necesario
+        'ffmpeg',      # No incluir FFmpeg
+        'ffprobe',     # No incluir FFprobe
     ]
     
     keep_patterns = [
@@ -192,7 +195,7 @@ def filter_datas(datas):
         'examples',
         'docs',
         'locale',  # Algunos locales innecesarios
-        'ffmpeg',  # FFmpeg data - ya no necesario
+        'ffmpeg',  # No incluir archivos de FFmpeg
     ]
     
     keep_patterns = [
@@ -227,7 +230,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='M4ADownloader',
+    name='MorphyDownloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -239,7 +242,7 @@ exe = EXE(
         'python*.dll',
     ],
     runtime_tmpdir=None,
-    console=False,  # Sin ventana de consola
+    console=False,  # Sin ventana de consola para la versión principal
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -248,7 +251,6 @@ exe = EXE(
     icon='assets/icon.ico'  # Icono del ejecutable
 )
 
-# Crear también versión con consola para debug
 exe_console = EXE(
     pyz,
     a.scripts,
@@ -256,7 +258,7 @@ exe_console = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='M4ADownloader-Console',
+    name='MorphyDownloader-Console',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -276,3 +278,10 @@ exe_console = EXE(
     entitlements_file=None,
     icon='assets/icon_console.ico'
 )
+
+# Comentarios importantes sobre FFmpeg:
+# - FFmpeg NO está incluido en el ejecutable intencionalmente
+# - Los usuarios deben instalarlo manualmente en su sistema
+# - Esto mantiene el ejecutable ligero y evita problemas de licencias
+# - La aplicación detecta automáticamente si FFmpeg está disponible
+# - Si no está disponible, usa M4A como fallback (que no requiere conversión)

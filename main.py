@@ -8,6 +8,7 @@ import sys
 import os
 import argparse
 import subprocess
+import platform
 
 # Añadir el directorio del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,9 +35,15 @@ def install_requirements():
     if missing_packages:
         print(f"📦 Instalando dependencias faltantes: {', '.join(missing_packages)}")
         try:
-            subprocess.check_call([
-                sys.executable, "-m", "pip", "install", "--user", *missing_packages
-            ])
+            # Preparar argumentos para subprocess
+            cmd = [sys.executable, "-m", "pip", "install", "--user", *missing_packages]
+            
+            # En Windows, ocultar ventana de consola
+            kwargs = {}
+            if platform.system() == "Windows":
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+            subprocess.check_call(cmd, **kwargs)
             print("✅ Dependencias instaladas correctamente")
         except subprocess.CalledProcessError as e:
             print(f"❌ Error instalando dependencias: {e}")

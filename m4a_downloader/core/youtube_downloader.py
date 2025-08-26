@@ -287,14 +287,16 @@ class YouTubeDownloader:
         ]
         
         try:
+            import platform
+            # Ejecutar FFmpeg
             # Ejecutar FFmpeg
             logger.debug(f"Converting {m4a_file} to MP3...")
-            result = subprocess.run(
-                ffmpeg_cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minutos timeout
-            )
+            
+            kwargs = {'capture_output': True, 'text': True, 'timeout': 300}
+            if platform.system() == "Windows":
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(ffmpeg_cmd, **kwargs)
             
             if result.returncode != 0:
                 logger.error(f"FFmpeg conversion failed: {result.stderr}")

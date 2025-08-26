@@ -44,11 +44,17 @@ class Config:
     def check_ffmpeg():
         """Verificar si FFmpeg está disponible en el sistema"""
         try:
-            # Intentar ejecutar ffmpeg para ver si está instalado
+            import platform
+            
+            kwargs = {}
+            if platform.system() == "Windows":
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                
             result = subprocess.run(['ffmpeg', '-version'], 
-                                  capture_output=True, 
-                                  text=True, 
-                                  timeout=5)
+                                capture_output=True, 
+                                text=True, 
+                                timeout=5,
+                                **kwargs)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
             return False

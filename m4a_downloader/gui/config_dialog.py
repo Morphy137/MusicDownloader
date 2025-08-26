@@ -4,7 +4,7 @@ import sys
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, 
-    QFileDialog, QComboBox, QGroupBox
+    QFileDialog, QComboBox, QGroupBox, QSpinBox
 )
 from PySide6.QtGui import QFont, QIcon, QDesktopServices
 from PySide6.QtCore import Qt, QUrl, QSettings
@@ -265,6 +265,10 @@ class ConfigDialog(QDialog):
         settings_widget = QWidget()
         settings_layout = QVBoxLayout(settings_widget)
         
+        # Grupo de configuraciones de descarga
+        download_group = QGroupBox("Configuraciones de Descarga")
+        download_layout = QVBoxLayout(download_group)
+        
         # Selector de calidad
         quality_layout = QHBoxLayout()
         quality_layout.addWidget(QLabel('Calidad de audio:'))
@@ -273,16 +277,43 @@ class ConfigDialog(QDialog):
         self.quality_combo.setCurrentText(Config.DEFAULT_QUALITY)
         quality_layout.addWidget(self.quality_combo)
         quality_layout.addStretch()
-        settings_layout.addLayout(quality_layout)
+        download_layout.addLayout(quality_layout)
         
         quality_info = QLabel(
             'La calidad se aplica solo a MP3. M4A siempre usa la mejor calidad disponible.'
         )
         quality_info.setFont(QFont('Inter', 10))
         quality_info.setStyleSheet('color: #888; font-style: italic;')
-        settings_layout.addWidget(quality_info)
+        download_layout.addWidget(quality_info)
         
-        settings_layout.addWidget(QLabel('Directorio de descarga por defecto:'))
+        # Selector de descargas paralelas
+        parallel_layout = QHBoxLayout()
+        parallel_layout.addWidget(QLabel('Descargas paralelas:'))
+        self.parallel_spinbox = QSpinBox()
+        self.parallel_spinbox.setRange(1, 8)  # Entre 1 y 8 descargas paralelas
+        self.parallel_spinbox.setValue(2)  # Valor por defecto actual
+        self.parallel_spinbox.setSuffix(' descargas')
+        self.parallel_spinbox.valueChanged.connect(self.on_parallel_changed)
+        parallel_layout.addWidget(self.parallel_spinbox)
+        parallel_layout.addStretch()
+        download_layout.addLayout(parallel_layout)
+        
+        # Información sobre descargas paralelas
+        self.parallel_info_label = QLabel(
+            'Más descargas paralelas = mayor velocidad, pero mayor uso de CPU y RAM.'
+        )
+        self.parallel_info_label.setFont(QFont('Inter', 10))
+        self.parallel_info_label.setStyleSheet('color: #888; font-style: italic;')
+        self.parallel_info_label.setWordWrap(True)
+        download_layout.addWidget(self.parallel_info_label)
+        
+        settings_layout.addWidget(download_group)
+        
+        # Grupo de configuraciones de archivo
+        file_group = QGroupBox("Configuraciones de Archivo")
+        file_layout = QVBoxLayout(file_group)
+        
+        file_layout.addWidget(QLabel('Directorio de descarga por defecto:'))
         default_output_layout = QHBoxLayout()
         self.output_dir_entry = QLineEdit(os.path.abspath('music'))
         
@@ -295,12 +326,19 @@ class ConfigDialog(QDialog):
         
         default_output_layout.addWidget(self.output_dir_entry)
         default_output_layout.addWidget(browse_btn)
-        settings_layout.addLayout(default_output_layout)
+        file_layout.addLayout(default_output_layout)
+        
+        settings_layout.addWidget(file_group)
+        
+        # Grupo de configuraciones de interfaz
+        interface_group = QGroupBox("Configuraciones de Interfaz")
+        interface_layout = QVBoxLayout(interface_group)
         
         # Opción para no mostrar configuración al inicio
         self.dont_show_again_cb = QCheckBox('No mostrar esta configuración al inicio')
-        settings_layout.addWidget(self.dont_show_again_cb)
+        interface_layout.addWidget(self.dont_show_again_cb)
         
+        settings_layout.addWidget(interface_group)
         settings_layout.addStretch()
         
         return settings_widget
@@ -320,6 +358,27 @@ class ConfigDialog(QDialog):
                 self.format_info_label.setStyleSheet('color: #e74c3c; background: #2f1a1a; padding: 15px; border-radius: 8px;')
         else:
             self.format_info_label.setStyleSheet('color: #3498db; background: #1a2a3a; padding: 15px; border-radius: 8px;')
+    
+    def on_parallel_changed(self, value):
+        """Actualizar información cuando se cambie el número de descargas paralelas"""
+        if value <= 2:
+            info_text = 'Configuración conservadora. Buena para equipos con recursos limitados.'
+            color = '#3498db'
+            bg_color = '#1a2a3a'
+        elif value <= 4:
+            info_text = 'Configuración balanceada. Recomendada para la mayoría de equipos.'
+            color = '#2ecc71'
+            bg_color = '#1a2f1a'
+        else:
+            info_text = 'Configuración agresiva. Solo para equipos potentes con buena conexión a internet.'
+            color = '#f39c12'
+            bg_color = '#2f2a1a'
+        
+        self.parallel_info_label.setText(
+            f'{info_text}\n'
+            f'Recomendación: 2-4 descargas para uso normal, 1 para equipos lentos.'
+        )
+        self.parallel_info_label.setStyleSheet(f'color: {color}; background: {bg_color}; padding: 10px; border-radius: 8px; font-style: italic;')
     
     def check_ffmpeg_status(self):
         """Verificar y mostrar el estado de FFmpeg"""
@@ -451,6 +510,7 @@ class ConfigDialog(QDialog):
         self.settings.setValue('spotify_client_secret', client_secret)
         self.settings.setValue('audio_format', selected_format)
         self.settings.setValue('audio_quality', self.quality_combo.currentText())
+        self.settings.setValue('parallel_downloads', self.parallel_spinbox.value())
         self.settings.setValue('default_output_dir', self.output_dir_entry.text())
         self.settings.setValue('dont_show_config', self.dont_show_again_cb.isChecked())
         
@@ -463,6 +523,7 @@ class ConfigDialog(QDialog):
                               f'Configuración guardada correctamente:\n'
                               f'• Formato: {selected_format.upper()}\n'
                               f'• Calidad: {self.quality_combo.currentText()} kbps\n'
+                              f'• Descargas paralelas: {self.parallel_spinbox.value()}\n'
                               f'• FFmpeg: {"✅ Disponible" if Config.check_ffmpeg() else "❌ No disponible"}\n\n'
                               f'{format_info["description"]}')
         
@@ -487,6 +548,14 @@ class ConfigDialog(QDialog):
         if saved_quality in Config.SUPPORTED_QUALITY:
             self.quality_combo.setCurrentText(saved_quality)
         
+        # Cargar descargas paralelas
+        saved_parallel = self.settings.value('parallel_downloads', 2, type=int)
+        if 1 <= saved_parallel <= 8:
+            self.parallel_spinbox.setValue(saved_parallel)
+        
+        # Actualizar información de descargas paralelas
+        self.on_parallel_changed(self.parallel_spinbox.value())
+        
         if self.settings.value('dont_show_config', False, type=bool):
             self.dont_show_again_cb.setChecked(True)
     
@@ -502,7 +571,7 @@ class ConfigDialog(QDialog):
                 color: {Config.FG_COLOR};
                 font-weight: 500;
             }}
-            QLineEdit, QComboBox {{
+            QLineEdit, QComboBox, QSpinBox {{
                 background: {Config.ENTRY_BG};
                 color: {Config.FG_COLOR};
                 border-radius: 8px;
@@ -510,7 +579,7 @@ class ConfigDialog(QDialog):
                 border: 2px solid transparent;
                 font-size: 13px;
             }}
-            QLineEdit:focus, QComboBox:focus {{
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
                 border: 2px solid {Config.PRIMARY_COLOR};
             }}
             QComboBox::drop-down {{
@@ -520,6 +589,15 @@ class ConfigDialog(QDialog):
             QComboBox::down-arrow {{
                 width: 12px;
                 height: 12px;
+            }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                background: {Config.PRIMARY_COLOR};
+                border-radius: 4px;
+                width: 16px;
+                height: 12px;
+            }}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background: {Config.PRIMARY_DARK};
             }}
             QTextEdit {{
                 background: {Config.BG_COLOR};
@@ -629,3 +707,8 @@ def get_saved_audio_quality():
     """Obtener la calidad de audio guardada"""
     settings = QSettings('MorphyDownloader', 'Config')
     return settings.value('audio_quality', Config.DEFAULT_QUALITY)
+
+def get_saved_parallel_downloads():
+    """Obtener el número de descargas paralelas guardado"""
+    settings = QSettings('MorphyDownloader', 'Config')
+    return settings.value('parallel_downloads', 2, type=int)
