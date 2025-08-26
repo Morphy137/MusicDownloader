@@ -8,7 +8,6 @@ import sys
 import os
 import argparse
 import subprocess
-import shutil
 
 # Añadir el directorio del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,17 +44,6 @@ def install_requirements():
             return False
     
     return True
-
-def check_ffmpeg():
-    """Verificar que FFmpeg esté disponible - sin instalación automática"""
-    if shutil.which('ffmpeg') or shutil.which('ffmpeg.exe'):
-        print("✅ FFmpeg disponible")
-        return True
-    
-    print("⚠️ FFmpeg no encontrado en el PATH")
-    print("📋 FFmpeg es necesario para convertir audio a MP3")
-    print("🔧 Instrucciones de instalación disponibles en la configuración")
-    return False
 
 def setup_ssl_certificates():
     """Configurar certificados SSL para descargas de portadas"""
@@ -114,9 +102,6 @@ def show_dependencies_status():
     print("\n🔍 Verificando dependencias...")
     print("=" * 50)
     
-    # FFmpeg
-    ffmpeg_ok = check_ffmpeg()
-    
     # SSL/Certificados
     ssl_ok = setup_ssl_certificates()
     
@@ -134,8 +119,6 @@ def show_dependencies_status():
     
     # Resumen
     issues = []
-    if not ffmpeg_ok:
-        issues.append("FFmpeg no está instalado")
     if not ssl_ok:
         issues.append("Certificados SSL no configurados")
     if not spotify_ok:
@@ -181,14 +164,6 @@ def main():
             print("\n📋 Más info: https://developer.spotify.com/dashboard/")
             sys.exit(1)
         
-        if not check_ffmpeg():
-            print("❌ Error: FFmpeg no está instalado.")
-            print("📋 Instala FFmpeg para continuar:")
-            print("Windows: https://www.gyan.dev/ffmpeg/builds/")
-            print("macOS: brew install ffmpeg")
-            print("Linux: sudo apt install ffmpeg")
-            sys.exit(1)
-        
         if args.url:
             # Descarga directa CLI
             try:
@@ -226,10 +201,6 @@ def main():
             
             if not check_spotify_credentials():
                 critical_issues.append("Credenciales de Spotify no configuradas")
-            
-            if not check_ffmpeg():
-                # FFmpeg no es crítico, solo mostrar warning
-                print("⚠️ Advertencia: FFmpeg no encontrado - algunas descargas podrían fallar")
             
             if critical_issues:
                 QMessageBox.critical(

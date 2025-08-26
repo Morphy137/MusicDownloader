@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# morphydownloader.spec - Configuración optimizada para PyInstaller con certificados SSL
+# morphydownloader.spec - Configuración optimizada para PyInstaller (SIN FFmpeg)
 
 import os
 import sys
@@ -42,7 +42,7 @@ a = Analysis(
         'yt_dlp.extractor',
         'yt_dlp.postprocessor',
         'yt_dlp.utils',
-        # Audio processing
+        # Audio processing (solo mutagen para M4A)
         'mutagen',
         'mutagen.easyid3',
         'mutagen.id3',
@@ -125,6 +125,10 @@ a = Analysis(
         'setuptools',
         'wheel',
         'pip',
+        # FFmpeg relacionado - ya no necesario
+        'ffmpeg',
+        'ffmpeg-python',
+        'subprocess.ffmpeg',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -149,6 +153,8 @@ def filter_binaries(binaries):
         'Qt6PrintSupport',
         'api-ms-win',  # Windows API files
         'ucrtbase',    # Universal C Runtime
+        'ffmpeg',      # FFmpeg binaries - ya no necesario
+        'ffprobe',     # FFprobe - ya no necesario
     ]
     
     keep_patterns = [
@@ -190,6 +196,7 @@ def filter_datas(datas):
         'examples',
         'docs',
         'locale',  # Algunos locales innecesarios
+        'ffmpeg',  # FFmpeg data - ya no necesario
     ]
     
     keep_patterns = [
