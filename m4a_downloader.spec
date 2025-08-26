@@ -124,11 +124,7 @@ a = Analysis(
         'pytest',
         'setuptools',
         'wheel',
-        'pip',
-        # FFmpeg relacionado - ya no necesario
-        'ffmpeg',
-        'ffmpeg-python',
-        'subprocess.ffmpeg',
+        'pip'
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

@@ -1,4 +1,4 @@
-"""YouTube audio downloader module - Optimized version with fast matching"""
+"""YouTube audio downloader module - Optimized version with MP3/M4A support"""
 import os
 import yt_dlp
 from typing import Optional, List, Dict
@@ -7,17 +7,26 @@ import re
 from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import subprocess
+import shutil
+from ..config import Config
 
 logger = logging.getLogger(__name__)
 
 class YouTubeDownloader:
-    def __init__(self, output_dir: str = "music/tmp", quality: str = '192'):
+    def __init__(self, output_dir: str = "music/tmp", quality: str = '192', audio_format: str = 'm4a'):
         self.output_dir = output_dir
         self.quality = quality
+        self.audio_format = audio_format.lower()
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Cache para búsquedas recientes
         self.search_cache = {}
+        
+        # Verificar FFmpeg si se necesita MP3
+        if self.audio_format == 'mp3' and not Config.check_ffmpeg():
+            logger.warning("MP3 format selected but FFmpeg not found. Falling back to M4A.")
+            self.audio_format = 'm4a'
         
     def _normalize_text(self, text: str) -> str:
         """Normalizar texto para comparaciones más efectivas"""
@@ -229,10 +238,9 @@ class YouTubeDownloader:
         logger.warning(f"No suitable video found for: {artist} - {title} (searched {elapsed_time:.1f}s)")
         raise ValueError(f"No suitable YouTube video found for: {artist} - {title}")
     
-    def download_audio(self, yt_link: str) -> str:
-        """Download audio from YouTube link as m4a"""
-        ydl_opts = {
-            'format': 'bestaudio[ext=m4a]',  # Solo m4a
+    def _get_ydl_opts(self) -> dict:
+        """Obtener opciones de yt-dlp según el formato seleccionado"""
+        base_opts = {
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
@@ -241,11 +249,106 @@ class YouTubeDownloader:
             'fragment_retries': 2,
             'ignoreerrors': False,
         }
+        
+        if self.audio_format == 'mp3':
+            # Para MP3: descargar M4A y convertir con FFmpeg
+            base_opts.update({
+                'format': 'bestaudio[ext=m4a]/bestaudio',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': self.quality,
+                }],
+            })
+        else:
+            # Para M4A: descarga directa
+            base_opts.update({
+                'format': 'bestaudio[ext=m4a]/bestaudio',
+            })
+        
+        return base_opts
+    
+    def _convert_to_mp3(self, m4a_file: str) -> str:
+        """Convertir archivo M4A a MP3 usando FFmpeg directamente"""
+        if not os.path.exists(m4a_file):
+            raise FileNotFoundError(f"M4A file not found: {m4a_file}")
+        
+        # Generar nombre del archivo MP3
+        mp3_file = m4a_file.replace('.m4a', '.mp3')
+        
+        # Comando FFmpeg para conversión
+        ffmpeg_cmd = [
+            'ffmpeg', '-y',  # -y para sobrescribir sin preguntar
+            '-i', m4a_file,  # archivo de entrada
+            '-codec:a', 'libmp3lame',  # codec MP3
+            '-b:a', f'{self.quality}k',  # bitrate
+            '-avoid_negative_ts', 'make_zero',  # evitar timestamps negativos
+            mp3_file  # archivo de salida
+        ]
+        
+        try:
+            # Ejecutar FFmpeg
+            logger.debug(f"Converting {m4a_file} to MP3...")
+            result = subprocess.run(
+                ffmpeg_cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minutos timeout
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"FFmpeg conversion failed: {result.stderr}")
+                raise RuntimeError(f"FFmpeg conversion failed: {result.stderr}")
+            
+            # Eliminar archivo M4A original
+            os.remove(m4a_file)
+            logger.debug(f"Successfully converted to {mp3_file}")
+            
+            return mp3_file
+            
+        except subprocess.TimeoutExpired:
+            logger.error("FFmpeg conversion timed out")
+            raise RuntimeError("FFmpeg conversion timed out")
+        except Exception as e:
+            logger.error(f"Error during FFmpeg conversion: {e}")
+            raise
+    
+    def download_audio(self, yt_link: str) -> str:
+        """Download audio from YouTube link in specified format"""
+        ydl_opts = self._get_ydl_opts()
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(yt_link, download=True)
-                base_filename = ydl.prepare_filename(info)
-                return base_filename  # Retorna .m4a
+                
+                if self.audio_format == 'mp3':
+                    # yt-dlp ya debería haber convertido a MP3 con postprocessor
+                    # Buscar el archivo MP3 resultante
+                    base_filename = ydl.prepare_filename(info)
+                    mp3_filename = base_filename.replace('.m4a', '.mp3').replace('.webm', '.mp3')
+                    
+                    # Si yt-dlp no pudo convertir, intentar conversión manual
+                    if not os.path.exists(mp3_filename) and os.path.exists(base_filename):
+                        logger.info("yt-dlp conversion failed, trying manual FFmpeg conversion...")
+                        if Config.check_ffmpeg():
+                            mp3_filename = self._convert_to_mp3(base_filename)
+                        else:
+                            logger.warning("FFmpeg not available for manual conversion")
+                            return base_filename  # Devolver M4A como fallback
+                    
+                    return mp3_filename
+                else:
+                    # M4A directo
+                    base_filename = ydl.prepare_filename(info)
+                    return base_filename
+                    
             except Exception as e:
                 logger.error(f"Error downloading {yt_link}: {e}")
                 raise
+    
+    def get_output_filename(self, track_info: dict) -> str:
+        """Generar nombre de archivo de salida basado en el formato"""
+        artist = re.sub(r'[\\/:*?"<>|]', '', track_info.get('artist_name', ''))
+        title = re.sub(r'[\\/:*?"<>|]', '', track_info.get('track_title', ''))
+        extension = self.audio_format
+        return f"{title} - {artist}.{extension}"

@@ -1,11 +1,13 @@
 # qt_gui.py
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-    QPushButton, QTextEdit, QFileDialog, QProgressBar, QSizePolicy, QMessageBox
+    QPushButton, QTextEdit, QFileDialog, QProgressBar, QSizePolicy, QMessageBox,
+    QComboBox, QGroupBox, QDialog
 )
 from PySide6.QtGui import QIcon, QFont, QCursor
-from PySide6.QtCore import Qt, QThread, Signal, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QSize, QSettings
 from ..config import Config
+from ..gui.config_dialog import get_saved_audio_format, get_saved_audio_quality
 
 import sys
 import os
@@ -44,10 +46,12 @@ class DownloadWorker(QThread):
     log_message = Signal(str, str)  # message, level
     download_finished = Signal(bool, str)  # success, message
     
-    def __init__(self, url, output_dir):
+    def __init__(self, url, output_dir, audio_format='m4a', quality='192'):
         super().__init__()
         self.url = url
         self.output_dir = output_dir
+        self.audio_format = audio_format
+        self.quality = quality
         self.cancel_requested = False
         
     def cancel(self):
@@ -90,12 +94,14 @@ class DownloadWorker(QThread):
                 else:
                     self.log_message.emit(msg, level)
             
-            # Ejecutar descarga
+            # Ejecutar descarga con formato y calidad especificados
             self.log_message.emit("Conectando con Spotify...", "info")
             
             download(
                 url=self.url, 
-                output=self.output_dir, 
+                output=self.output_dir,
+                audio_format=self.audio_format,
+                quality=self.quality,
                 progress_callback=progress_callback, 
                 log_callback=log_callback
             )
@@ -103,7 +109,7 @@ class DownloadWorker(QThread):
             if not self.cancel_requested:
                 total_time = time.time() - start_time
                 success = True
-                message = f"Descarga completada en {total_time:.1f}s"
+                message = f"Descarga completada en {total_time:.1f}s - Formato: {self.audio_format.upper()}"
                 
         except Exception as e:
             total_time = time.time() - start_time
@@ -118,14 +124,16 @@ class MorphyDownloaderQt(QWidget):
     def __init__(self):
         super().__init__()
         self.worker_thread = None
+        self.settings = QSettings('MorphyDownloader', 'Config')
         self.init_ui()
         self.setup_styling()
+        self.load_settings()
         
     def init_ui(self):
         """Inicializar interfaz de usuario"""
         self.setWindowTitle('MorphyDownloader')
         
-        self.setMinimumSize(600, 700)
+        self.setMinimumSize(650, 750)
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowCloseButtonHint, True)
         
@@ -141,12 +149,12 @@ class MorphyDownloaderQt(QWidget):
         # Header con título y botón de configuración
         header_layout = QHBoxLayout()
         
-        title_label = QLabel('M4A Downloader')
+        title_label = QLabel('M4A/MP3 Downloader')
         title_label.setFont(QFont('Segoe UI', 24, QFont.Bold))
         title_label.setStyleSheet(f"color: {PRIMARY_COLOR}; font-weight: 900;")
         
         config_btn = QPushButton()
-        self._set_icon_or_text(config_btn, 'settings', '⚙️')
+        self._set_icon_or_text(config_btn, 'settings', 'Config')
         config_btn.setCursor(QCursor(Qt.PointingHandCursor))
         config_btn.setToolTip('Abrir configuración')
         config_btn.setFixedSize(40, 40)
@@ -169,6 +177,31 @@ class MorphyDownloaderQt(QWidget):
         layout.addWidget(url_label)
         layout.addWidget(self.url_entry)
 
+        # Configuración de formato y calidad
+        format_group = QGroupBox("Configuración de Audio")
+        format_layout = QHBoxLayout(format_group)
+        
+        # Selector de formato
+        format_layout.addWidget(QLabel('Formato:'))
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(['m4a', 'mp3'])
+        self.format_combo.currentTextChanged.connect(self.on_format_changed)
+        format_layout.addWidget(self.format_combo)
+        
+        # Selector de calidad
+        format_layout.addWidget(QLabel('Calidad:'))
+        self.quality_combo = QComboBox()
+        self.quality_combo.addItems(Config.SUPPORTED_QUALITY)
+        format_layout.addWidget(self.quality_combo)
+        
+        # Estado de FFmpeg
+        self.ffmpeg_status = QLabel()
+        self.ffmpeg_status.setWordWrap(True)
+        format_layout.addWidget(self.ffmpeg_status)
+        format_layout.addStretch()
+        
+        layout.addWidget(format_group)
+
         # Selección de carpeta de destino
         folder_section = QVBoxLayout()
         folder_label = QLabel('Carpeta de destino:')
@@ -188,7 +221,7 @@ class MorphyDownloaderQt(QWidget):
         self.output_entry.setMinimumWidth(200)
         
         browse_btn = QPushButton()
-        self._set_icon_or_text(browse_btn, 'folder_select', '📁')
+        self._set_icon_or_text(browse_btn, 'folder_select', 'Buscar')
         browse_btn.setCursor(QCursor(Qt.PointingHandCursor))
         browse_btn.setToolTip('Elegir carpeta')
         browse_btn.setFixedSize(44, 44)
@@ -203,7 +236,7 @@ class MorphyDownloaderQt(QWidget):
 
         # Botón principal de descarga
         self.download_btn = QPushButton()
-        self._set_icon_or_text(self.download_btn, 'folder_download', '⬇️ Descargar')
+        self._set_icon_or_text(self.download_btn, 'folder_download', 'Descargar')
         self.download_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.download_btn.setFont(QFont('Inter', 14, QFont.Bold))
         self.download_btn.clicked.connect(self.start_download)
@@ -239,7 +272,7 @@ class MorphyDownloaderQt(QWidget):
         buttons_container.setSpacing(4)
         
         self.cancel_btn = QPushButton()
-        self._set_icon_or_text(self.cancel_btn, 'folder_cancel', '❌')
+        self._set_icon_or_text(self.cancel_btn, 'folder_cancel', 'Cancelar')
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setToolTip('Cancelar descarga')
         self.cancel_btn.setFixedSize(44, 44)
@@ -248,7 +281,7 @@ class MorphyDownloaderQt(QWidget):
         self.cancel_btn.setEnabled(False)
         
         open_btn = QPushButton()
-        self._set_icon_or_text(open_btn, 'folder_open', '🗂️')
+        self._set_icon_or_text(open_btn, 'folder_open', 'Abrir')
         open_btn.setCursor(QCursor(Qt.PointingHandCursor))
         open_btn.setToolTip('Abrir carpeta de destino')
         open_btn.setFixedSize(44, 44)
@@ -275,6 +308,51 @@ class MorphyDownloaderQt(QWidget):
         else:
             button.setText(fallback_text)
 
+    def load_settings(self):
+        """Cargar configuración guardada"""
+        # Cargar formato de audio
+        saved_format = get_saved_audio_format()
+        if saved_format in Config.SUPPORTED_FORMATS:
+            self.format_combo.setCurrentText(saved_format)
+        
+        # Cargar calidad de audio
+        saved_quality = get_saved_audio_quality()
+        if saved_quality in Config.SUPPORTED_QUALITY:
+            self.quality_combo.setCurrentText(saved_quality)
+            
+        # Cargar directorio de salida
+        saved_output = self.settings.value('default_output_dir')
+        if saved_output and os.path.exists(saved_output):
+            self.output_entry.setText(saved_output)
+            
+        # Actualizar estado inicial
+        self.on_format_changed(self.format_combo.currentText())
+
+    def on_format_changed(self, format_type):
+        """Actualizar interfaz cuando se cambie el formato"""
+        format_info = Config.get_format_info(format_type)
+        
+        # Actualizar título de la ventana
+        self.setWindowTitle(f'MorphyDownloader - {format_type.upper()}')
+        
+        # Actualizar estado de FFmpeg
+        if format_info['requires_ffmpeg']:
+            if Config.check_ffmpeg():
+                self.ffmpeg_status.setText("FFmpeg: Disponible")
+                self.ffmpeg_status.setStyleSheet('color: #2ecc71; font-weight: bold;')
+                self.quality_combo.setEnabled(True)
+            else:
+                self.ffmpeg_status.setText("FFmpeg: No disponible")
+                self.ffmpeg_status.setStyleSheet('color: #e74c3c; font-weight: bold;')
+                self.quality_combo.setEnabled(False)
+        else:
+            self.ffmpeg_status.setText("Sin conversión")
+            self.ffmpeg_status.setStyleSheet('color: #3498db; font-weight: bold;')
+            self.quality_combo.setEnabled(False)
+            
+        # Actualizar texto del botón de descarga
+        self.download_btn.setText(f"Descargar {format_type.upper()}")
+
     def open_config(self):
         """Abrir ventana de configuración"""
         try:
@@ -288,7 +366,10 @@ class MorphyDownloaderQt(QWidget):
             y = parent_geometry.y() + (parent_geometry.height() - dialog_size.height()) // 2
             config_dialog.move(x, y)
             
-            config_dialog.exec()
+            if config_dialog.exec() == QDialog.Accepted:
+                # Recargar configuración después de guardar
+                self.load_settings()
+                
         except ImportError as e:
             QMessageBox.warning(self, "Error", f"No se pudo abrir la configuración: {e}")
 
@@ -313,6 +394,32 @@ class MorphyDownloaderQt(QWidget):
             QLineEdit:focus {{
                 border: 2px solid {PRIMARY_COLOR};
                 background: #2a2f36;
+            }}
+            QComboBox {{
+                background: {ENTRY_BG};
+                color: {FG_COLOR};
+                border-radius: 8px;
+                padding: 8px 12px;
+                border: 2px solid transparent;
+                font-size: 13px;
+                min-width: 80px;
+            }}
+            QComboBox:focus {{
+                border: 2px solid {PRIMARY_COLOR};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                width: 12px;
+                height: 12px;
+            }}
+            QComboBox QAbstractItemView {{
+                background: {ENTRY_BG};
+                color: {FG_COLOR};
+                selection-background-color: {PRIMARY_COLOR};
+                border: 1px solid #2a2f36;
             }}
             QTextEdit {{ 
                 background: {BG_COLOR}; 
@@ -385,6 +492,18 @@ class MorphyDownloaderQt(QWidget):
                 font-weight: 500;
                 min-height: 22px;
             }}
+            QGroupBox {{
+                font-weight: bold;
+                border: 2px solid #2a2f36;
+                border-radius: 12px;
+                margin-top: 1ex;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }}
         """)
 
     def choose_folder(self):
@@ -417,6 +536,8 @@ class MorphyDownloaderQt(QWidget):
         """Iniciar proceso de descarga"""
         url = self.url_entry.text().strip()
         output = self.output_entry.text().strip()
+        audio_format = self.format_combo.currentText()
+        quality = self.quality_combo.currentText()
         
         if not url:
             QMessageBox.warning(self, "Error", "Por favor, ingresa una URL de Spotify.")
@@ -426,22 +547,39 @@ class MorphyDownloaderQt(QWidget):
         if 'spotify.com' not in url and 'spoti.fi' not in url:
             QMessageBox.warning(self, "URL No Válida", "Debe ser una URL de Spotify válida.")
             return
+            
+        # Verificar FFmpeg si se necesita MP3
+        if audio_format == 'mp3' and not Config.check_ffmpeg():
+            reply = QMessageBox.question(
+                self,
+                "FFmpeg No Disponible",
+                f"Has seleccionado formato MP3 pero FFmpeg no está instalado.\n"
+                f"¿Deseas continuar con M4A en su lugar?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                audio_format = 'm4a'
+                self.format_combo.setCurrentText('m4a')
+            else:
+                return
         
         # Limpiar interfaz para nueva descarga
         self.output_box.clear()
         
         # Determinar tipo de contenido
         if 'track' in url:
-            msg = 'Preparando descarga de canción...'
+            msg = f'Preparando descarga de canción en {audio_format.upper()}...'
         elif 'playlist' in url:
-            msg = 'Preparando descarga de playlist...'
+            msg = f'Preparando descarga de playlist en {audio_format.upper()}...'
         elif 'album' in url:
-            msg = 'Preparando descarga de álbum...'
+            msg = f'Preparando descarga de álbum en {audio_format.upper()}...'
         else:
-            msg = 'Preparando descarga...'
+            msg = f'Preparando descarga en {audio_format.upper()}...'
         
         self.append_log(msg, SUCCESS_COLOR)
-        self.show_status_message("Iniciando...", PRIMARY_COLOR)
+        self.show_status_message(f"Iniciando descarga {audio_format.upper()}...", PRIMARY_COLOR)
         
         # Actualizar estado de la interfaz
         self.download_btn.setEnabled(False)
@@ -449,12 +587,12 @@ class MorphyDownloaderQt(QWidget):
         self.progress.setValue(0)
         
         # Inicializar worker thread
-        self.worker_thread = DownloadWorker(url, output)
+        self.worker_thread = DownloadWorker(url, output, audio_format, quality)
         self.worker_thread.progress_updated.connect(self.update_progress)
         self.worker_thread.log_message.connect(self.handle_log_message)
         self.worker_thread.download_finished.connect(self.handle_download_finished)
         
-        start_msg = f"Inicio: {time.strftime('%H:%M:%S')}"
+        start_msg = f"Inicio: {time.strftime('%H:%M:%S')} - {audio_format.upper()} {quality}kbps"
         self.append_log(start_msg, "#888888")
         
         self.worker_thread.start()

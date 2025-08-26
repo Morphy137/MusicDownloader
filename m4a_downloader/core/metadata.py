@@ -45,18 +45,40 @@ class MetadataSetter:
     
     @staticmethod
     def set_metadata(metadata, file_path):
-        """Set metadata for m4a file"""
+        """Set metadata for m4a or mp3 file"""
         try:
-            # Set basic metadata
-            mp4file = MP4(file_path)
-            mp4file['\xa9nam'] = metadata.get("track_title", "")  # Title
-            mp4file['\xa9ART'] = ", ".join(metadata.get("artists", []))  # Artist
-            mp4file['\xa9alb'] = metadata.get("album_name", "")  # Album
-            mp4file['\xa9day'] = metadata.get("release_date", "")  # Year
-            mp4file['trkn'] = [(metadata.get("track_number", 0), 0)]  # Track number
-            mp4file.save()
-            logger.debug(f"Basic metadata set for {os.path.basename(file_path)}")
-            
+            if file_path.lower().endswith('.m4a'):
+                # Set basic metadata for M4A
+                mp4file = MP4(file_path)
+                mp4file['\xa9nam'] = metadata.get("track_title", "")  # Title
+                mp4file['\xa9ART'] = ", ".join(metadata.get("artists", []))  # Artist
+                mp4file['\xa9alb'] = metadata.get("album_name", "")  # Album
+                mp4file['\xa9day'] = metadata.get("release_date", "")  # Year
+                mp4file['trkn'] = [(metadata.get("track_number", 0), 0)]  # Track number
+                mp4file.save()
+                logger.debug(f"Basic metadata set for {os.path.basename(file_path)} (M4A)")
+            elif file_path.lower().endswith('.mp3'):
+                # Set basic metadata for MP3
+                from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, APIC
+                try:
+                    audio = ID3(file_path)
+                except Exception:
+                    audio = ID3()
+                audio.delall("TIT2")
+                audio.delall("TPE1")
+                audio.delall("TALB")
+                audio.delall("TDRC")
+                audio.delall("TRCK")
+                audio.add(TIT2(encoding=3, text=metadata.get("track_title", "")))
+                audio.add(TPE1(encoding=3, text=metadata.get("artists", [])))
+                audio.add(TALB(encoding=3, text=metadata.get("album_name", "")))
+                audio.add(TDRC(encoding=3, text=metadata.get("release_date", "")))
+                audio.add(TRCK(encoding=3, text=str(metadata.get("track_number", 0))))
+                audio.save(file_path, v2_version=3)
+                logger.debug(f"Basic metadata set for {os.path.basename(file_path)} (MP3)")
+            else:
+                logger.warning(f"Unsupported file type for metadata: {file_path}")
+                return
             # Handle album art
             album_art_url = metadata.get("album_art", "")
             if album_art_url:

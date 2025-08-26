@@ -3,7 +3,8 @@ import os
 import sys
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-    QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, QFileDialog
+    QPushButton, QTextEdit, QCheckBox, QMessageBox, QTabWidget, QWidget, 
+    QFileDialog, QComboBox, QGroupBox
 )
 from PySide6.QtGui import QFont, QIcon, QDesktopServices
 from PySide6.QtCore import Qt, QUrl, QSettings
@@ -29,12 +30,13 @@ class ConfigDialog(QDialog):
         self.settings = QSettings('MorphyDownloader', 'Config')
         self.init_ui()
         self.load_settings()
+        self.check_ffmpeg_status()
         
     def init_ui(self):
         self.setWindowTitle('Configuración de MorphyDownloader')
         
-        self.setMinimumSize(650, 900)
-        self.resize(650, 900)
+        self.setMinimumSize(700, 950)
+        self.resize(700, 950)
         self.setModal(True)
         
         # Configurar icono de aplicación
@@ -52,7 +54,7 @@ class ConfigDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
-        subtitle_label = QLabel('Configuración inicial - Solo necesitas credenciales de Spotify')
+        subtitle_label = QLabel('Configuración inicial - Credenciales de Spotify y formato de audio')
         subtitle_label.setFont(QFont('Inter', 12))
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setStyleSheet('color: #888;')
@@ -64,6 +66,9 @@ class ConfigDialog(QDialog):
         cred_widget = self.create_credentials_tab()
         tabs.addTab(cred_widget, 'Credenciales')
         
+        format_widget = self.create_format_tab()
+        tabs.addTab(format_widget, 'Formato de Audio')
+        
         settings_widget = self.create_settings_tab()
         tabs.addTab(settings_widget, 'Configuración')
         
@@ -73,16 +78,16 @@ class ConfigDialog(QDialog):
         button_layout = QHBoxLayout()
         
         test_btn = QPushButton('Probar Credenciales')
-        self._set_icon_or_text(test_btn, 'test', '🧪 Probar Credenciales')
+        self._set_icon_or_text(test_btn, 'test', 'Test Credenciales')
         test_btn.clicked.connect(self.test_credentials_only)
         
         save_btn = QPushButton('Guardar y Continuar')
-        self._set_icon_or_text(save_btn, 'save', '💾 Guardar y Continuar')
+        self._set_icon_or_text(save_btn, 'save', 'Guardar y Continuar')
         save_btn.clicked.connect(self.save_and_close)
         save_btn.setDefault(True)
         
         cancel_btn = QPushButton('Cancelar')
-        self._set_icon_or_text(cancel_btn, 'cancel', '❌ Cancelar')
+        self._set_icon_or_text(cancel_btn, 'cancel', 'Cancelar')
         cancel_btn.clicked.connect(self.reject)
         
         button_layout.addWidget(test_btn)
@@ -109,8 +114,8 @@ class ConfigDialog(QDialog):
         cred_layout = QVBoxLayout(cred_widget)
         
         welcome_label = QLabel(
-            'MorphyDownloader descarga audio en formato M4A de alta calidad '
-            'directamente desde YouTube, sin necesidad de conversión.\n\n'
+            'MorphyDownloader descarga audio de alta calidad desde YouTube '
+            'con metadatos completos de Spotify.\n\n'
             'Solo necesitas configurar tus credenciales de Spotify:'
         )
         welcome_label.setFont(QFont('Inter', 11))
@@ -149,7 +154,7 @@ class ConfigDialog(QDialog):
         
         # Botón para abrir Spotify Developer
         open_spotify_btn = QPushButton('Abrir Spotify Developer Dashboard')
-        self._set_icon_or_text(open_spotify_btn, 'web', '🌐 Abrir Spotify Developer Dashboard')
+        self._set_icon_or_text(open_spotify_btn, 'web', 'Abrir Spotify Developer Dashboard')
         open_spotify_btn.clicked.connect(lambda: QDesktopServices.openUrl(
             QUrl('https://developer.spotify.com/dashboard/')
         ))
@@ -175,20 +180,107 @@ class ConfigDialog(QDialog):
         cred_layout.addStretch()
         return cred_widget
     
+    def create_format_tab(self):
+        """Crear pestaña de configuración de formato de audio"""
+        format_widget = QWidget()
+        format_layout = QVBoxLayout(format_widget)
+        
+        # Grupo de selección de formato
+        format_group = QGroupBox("Formato de Audio")
+        format_group_layout = QVBoxLayout(format_group)
+        
+        # Selector de formato
+        format_layout_inner = QHBoxLayout()
+        format_layout_inner.addWidget(QLabel('Formato de descarga:'))
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(['m4a', 'mp3'])
+        self.format_combo.currentTextChanged.connect(self.on_format_changed)
+        format_layout_inner.addWidget(self.format_combo)
+        format_layout_inner.addStretch()
+        format_group_layout.addLayout(format_layout_inner)
+        
+        # Información del formato seleccionado
+        self.format_info_label = QLabel()
+        self.format_info_label.setWordWrap(True)
+        self.format_info_label.setStyleSheet('color: #3498db; background: #1a2a3a; padding: 15px; border-radius: 8px;')
+        format_group_layout.addWidget(self.format_info_label)
+        
+        format_layout.addWidget(format_group)
+        
+        # Sección FFmpeg
+        ffmpeg_group = QGroupBox("FFmpeg (Requerido para MP3)")
+        ffmpeg_layout = QVBoxLayout(ffmpeg_group)
+        
+        # Estado de FFmpeg
+        self.ffmpeg_status_label = QLabel()
+        self.ffmpeg_status_label.setWordWrap(True)
+        ffmpeg_layout.addWidget(self.ffmpeg_status_label)
+        
+        # Instrucciones de instalación de FFmpeg
+        ffmpeg_instructions = QTextEdit()
+        ffmpeg_instructions.setReadOnly(True)
+        ffmpeg_instructions.setFixedHeight(250)
+        ffmpeg_instructions.setHtml("""
+        <h3>Instalación de FFmpeg:</h3>
+        <h4>Windows:</h4>
+        <ol>
+            <li>Descarga FFmpeg desde <a href="https://ffmpeg.org/download.html#build-windows">ffmpeg.org</a></li>
+            <li>Extrae el archivo zip a una carpeta (ej: C:\\ffmpeg)</li>
+            <li>Agrega la carpeta bin al PATH del sistema:
+                <ul>
+                    <li>Busca "Variables de entorno" en el menú inicio</li>
+                    <li>Edita las variables de entorno del sistema</li>
+                    <li>Edita la variable PATH</li>
+                    <li>Agrega: C:\\ffmpeg\\bin</li>
+                </ul>
+            </li>
+            <li>Reinicia el programa</li>
+        </ol>
+        
+        <h4>macOS:</h4>
+        <ol>
+            <li>Instala Homebrew si no lo tienes: <code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code></li>
+            <li>Ejecuta en Terminal: <code>brew install ffmpeg</code></li>
+        </ol>
+        
+        <h4>Linux (Ubuntu/Debian):</h4>
+        <ol>
+            <li>Ejecuta en Terminal: <code>sudo apt update && sudo apt install ffmpeg</code></li>
+        </ol>
+        """)
+        ffmpeg_layout.addWidget(ffmpeg_instructions)
+        
+        # Botón para verificar FFmpeg
+        check_ffmpeg_btn = QPushButton('Verificar FFmpeg')
+        check_ffmpeg_btn.clicked.connect(self.check_ffmpeg_status)
+        ffmpeg_layout.addWidget(check_ffmpeg_btn)
+        
+        format_layout.addWidget(ffmpeg_group)
+        format_layout.addStretch()
+        
+        return format_widget
+    
     def create_settings_tab(self):
         """Crear pestaña de configuraciones adicionales"""
         settings_widget = QWidget()
         settings_layout = QVBoxLayout(settings_widget)
         
-        format_info = QLabel(
-            '🎵 MorphyDownloader descarga audio en formato M4A de alta calidad.\n'
-            'Este formato es compatible con todos los dispositivos y reproductores modernos, '
-            'incluyendo iPhone, Android, Windows, Mac y Linux.'
+        # Selector de calidad
+        quality_layout = QHBoxLayout()
+        quality_layout.addWidget(QLabel('Calidad de audio:'))
+        self.quality_combo = QComboBox()
+        self.quality_combo.addItems(Config.SUPPORTED_QUALITY)
+        self.quality_combo.setCurrentText(Config.DEFAULT_QUALITY)
+        quality_layout.addWidget(self.quality_combo)
+        quality_layout.addStretch()
+        settings_layout.addLayout(quality_layout)
+        
+        quality_info = QLabel(
+            'La calidad se aplica solo a MP3. M4A siempre usa la mejor calidad disponible.'
         )
-        format_info.setFont(QFont('Inter', 11))
-        format_info.setWordWrap(True)
-        format_info.setStyleSheet('color: #3498db; background: #1a2a3a; padding: 15px; border-radius: 8px;')
-        settings_layout.addWidget(format_info)
+        quality_info.setFont(QFont('Inter', 10))
+        quality_info.setStyleSheet('color: #888; font-style: italic;')
+        settings_layout.addWidget(quality_info)
         
         settings_layout.addWidget(QLabel('Directorio de descarga por defecto:'))
         default_output_layout = QHBoxLayout()
@@ -196,8 +288,8 @@ class ConfigDialog(QDialog):
         
         # Botón para seleccionar carpeta
         browse_btn = QPushButton()
-        self._set_icon_or_text(browse_btn, 'folder_browse', '📁')
-        browse_btn.setFixedWidth(40)
+        self._set_icon_or_text(browse_btn, 'folder_browse', 'Seleccionar')
+        browse_btn.setFixedWidth(80)
         browse_btn.setToolTip('Seleccionar carpeta')
         browse_btn.clicked.connect(self.browse_output_dir)
         
@@ -212,6 +304,40 @@ class ConfigDialog(QDialog):
         settings_layout.addStretch()
         
         return settings_widget
+    
+    def on_format_changed(self, format_type):
+        """Actualizar información cuando se cambie el formato"""
+        format_info = Config.get_format_info(format_type)
+        self.format_info_label.setText(
+            f"{format_info['description']}\n{format_info['quality_note']}"
+        )
+        
+        # Actualizar color según si requiere FFmpeg
+        if format_info['requires_ffmpeg']:
+            if Config.check_ffmpeg():
+                self.format_info_label.setStyleSheet('color: #2ecc71; background: #1a2f1a; padding: 15px; border-radius: 8px;')
+            else:
+                self.format_info_label.setStyleSheet('color: #e74c3c; background: #2f1a1a; padding: 15px; border-radius: 8px;')
+        else:
+            self.format_info_label.setStyleSheet('color: #3498db; background: #1a2a3a; padding: 15px; border-radius: 8px;')
+    
+    def check_ffmpeg_status(self):
+        """Verificar y mostrar el estado de FFmpeg"""
+        if Config.check_ffmpeg():
+            ffmpeg_path = Config.get_ffmpeg_path()
+            self.ffmpeg_status_label.setText(
+                f"✅ FFmpeg encontrado: {ffmpeg_path}\nPuedes usar formato MP3 sin problemas."
+            )
+            self.ffmpeg_status_label.setStyleSheet('color: #2ecc71; background: #1a2f1a; padding: 10px; border-radius: 8px;')
+        else:
+            self.ffmpeg_status_label.setText(
+                "⚠️ FFmpeg no encontrado\nInstala FFmpeg para usar formato MP3. M4A funcionará sin FFmpeg."
+            )
+            self.ffmpeg_status_label.setStyleSheet('color: #e74c3c; background: #2f1a1a; padding: 10px; border-radius: 8px;')
+        
+        # Actualizar información del formato actual
+        current_format = self.format_combo.currentText()
+        self.on_format_changed(current_format)
     
     def toggle_secret_visibility(self, state):
         """Alternar entre mostrar/ocultar el Client Secret"""
@@ -288,6 +414,24 @@ class ConfigDialog(QDialog):
                               'Por favor completa las credenciales de Spotify')
             return
         
+        # Validar que si se selecciona MP3, FFmpeg esté disponible
+        selected_format = self.format_combo.currentText()
+        if selected_format == 'mp3' and not Config.check_ffmpeg():
+            reply = QMessageBox.question(
+                self, 
+                '⚠️ FFmpeg no encontrado',
+                'Has seleccionado formato MP3 pero FFmpeg no está instalado.\n'
+                '¿Deseas continuar con M4A en su lugar?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                self.format_combo.setCurrentText('m4a')
+                selected_format = 'm4a'
+            else:
+                return
+        
         # Validar credenciales antes de guardar
         if not self.test_credentials():
             reply = QMessageBox.question(
@@ -305,6 +449,8 @@ class ConfigDialog(QDialog):
         # Guardar configuración en QSettings
         self.settings.setValue('spotify_client_id', client_id)
         self.settings.setValue('spotify_client_secret', client_secret)
+        self.settings.setValue('audio_format', selected_format)
+        self.settings.setValue('audio_quality', self.quality_combo.currentText())
         self.settings.setValue('default_output_dir', self.output_dir_entry.text())
         self.settings.setValue('dont_show_config', self.dont_show_again_cb.isChecked())
         
@@ -312,9 +458,13 @@ class ConfigDialog(QDialog):
         os.environ['SPOTIPY_CLIENT_ID'] = client_id
         os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
         
+        format_info = Config.get_format_info(selected_format)
         QMessageBox.information(self, '✅ ¡Configuración Guardada!', 
-                              'La configuración se ha guardado correctamente.\n'
-                              'Ya puedes usar MorphyDownloader para descargar audio M4A de alta calidad.')
+                              f'Configuración guardada correctamente:\n'
+                              f'• Formato: {selected_format.upper()}\n'
+                              f'• Calidad: {self.quality_combo.currentText()} kbps\n'
+                              f'• FFmpeg: {"✅ Disponible" if Config.check_ffmpeg() else "❌ No disponible"}\n\n'
+                              f'{format_info["description"]}')
         
         self.accept()
     
@@ -326,6 +476,16 @@ class ConfigDialog(QDialog):
             self.client_secret_entry.setText(self.settings.value('spotify_client_secret'))
         if self.settings.value('default_output_dir'):
             self.output_dir_entry.setText(self.settings.value('default_output_dir'))
+        
+        # Cargar formato de audio
+        saved_format = self.settings.value('audio_format', Config.DEFAULT_FORMAT)
+        if saved_format in Config.SUPPORTED_FORMATS:
+            self.format_combo.setCurrentText(saved_format)
+        
+        # Cargar calidad de audio
+        saved_quality = self.settings.value('audio_quality', Config.DEFAULT_QUALITY)
+        if saved_quality in Config.SUPPORTED_QUALITY:
+            self.quality_combo.setCurrentText(saved_quality)
         
         if self.settings.value('dont_show_config', False, type=bool):
             self.dont_show_again_cb.setChecked(True)
@@ -342,7 +502,7 @@ class ConfigDialog(QDialog):
                 color: {Config.FG_COLOR};
                 font-weight: 500;
             }}
-            QLineEdit {{
+            QLineEdit, QComboBox {{
                 background: {Config.ENTRY_BG};
                 color: {Config.FG_COLOR};
                 border-radius: 8px;
@@ -350,8 +510,16 @@ class ConfigDialog(QDialog):
                 border: 2px solid transparent;
                 font-size: 13px;
             }}
-            QLineEdit:focus {{
+            QLineEdit:focus, QComboBox:focus {{
                 border: 2px solid {Config.PRIMARY_COLOR};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                width: 12px;
+                height: 12px;
             }}
             QTextEdit {{
                 background: {Config.BG_COLOR};
@@ -412,6 +580,18 @@ class ConfigDialog(QDialog):
                 background: {Config.PRIMARY_COLOR};
                 color: white;
             }}
+            QGroupBox {{
+                font-weight: bold;
+                border: 2px solid #2a2f36;
+                border-radius: 8px;
+                margin-top: 1ex;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }}
         """)
 
 # Funciones de utilidad para la configuración
@@ -439,3 +619,13 @@ def load_saved_config():
     if settings.value('spotify_client_id') and settings.value('spotify_client_secret'):
         os.environ['SPOTIPY_CLIENT_ID'] = settings.value('spotify_client_id')
         os.environ['SPOTIPY_CLIENT_SECRET'] = settings.value('spotify_client_secret')
+
+def get_saved_audio_format():
+    """Obtener el formato de audio guardado"""
+    settings = QSettings('MorphyDownloader', 'Config')
+    return settings.value('audio_format', Config.DEFAULT_FORMAT)
+
+def get_saved_audio_quality():
+    """Obtener la calidad de audio guardada"""
+    settings = QSettings('MorphyDownloader', 'Config')
+    return settings.value('audio_quality', Config.DEFAULT_QUALITY)
