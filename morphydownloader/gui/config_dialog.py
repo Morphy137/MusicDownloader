@@ -1,5 +1,4 @@
 # morphydownloader/gui/config_dialog.py - Ventana de configuración mejorada con FFmpeg
-
 import os
 import sys
 import shutil
@@ -58,7 +57,12 @@ class ConfigDialog(QDialog):
         
     def init_ui(self):
         self.setWindowTitle('Configuración de MorphyDownloader')
-        self.setFixedSize(700, 600)
+        # ❌ PROBLEMA: setFixedSize causa redimensionado al mover
+        # self.setFixedSize(700, 600)  # REMOVER ESTA LÍNEA
+        
+        # ✅ SOLUCIÓN: Usar tamaño mínimo y inicial sin bloquear
+        self.setMinimumSize(720, 640)  # Tamaño mínimo más grande
+        self.resize(750, 680)          # Tamaño inicial cómodo
         self.setModal(True)
         
         # Icon - Usar icon.png o icon.ico
@@ -67,7 +71,7 @@ class ConfigDialog(QDialog):
             if os.path.exists(icon_path):
                 self.setWindowIcon(QIcon(icon_path))
         except Exception:
-            pass  # Si no encuentra el icono, continúa sin él
+            pass
         
         layout = QVBoxLayout()
         layout.setSpacing(20)
@@ -129,7 +133,7 @@ class ConfigDialog(QDialog):
         self.check_ffmpeg_status()
         
     def create_ffmpeg_tab(self):
-        """Crear tab de configuración de FFmpeg"""
+        """Crear tab de configuración de FFmpeg con dimensiones fijas"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
@@ -156,13 +160,17 @@ class ConfigDialog(QDialog):
         
         layout.addWidget(status_group)
         
-        # Instrucciones de instalación
+        # ✅ SOLUCIÓN: Instrucciones con altura FIJA para evitar redimensionado
         install_group = QGroupBox("Instalación Manual")
         install_layout = QVBoxLayout(install_group)
         
         instructions_text = QTextEdit()
         instructions_text.setReadOnly(True)
-        instructions_text.setMaximumHeight(200)
+        # ✅ Altura FIJA para evitar redimensionado automático
+        instructions_text.setFixedHeight(280)  # Altura fija específica
+        instructions_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        instructions_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
         instructions_text.setHtml("""
         <div style="line-height: 1.6; font-family: 'Inter', sans-serif;">
         <h3 style="color: #DC143C; margin-top: 0;">📋 Pasos para instalar FFmpeg:</h3>
@@ -188,8 +196,8 @@ class ConfigDialog(QDialog):
         
         <h4>🐧 Linux:</h4>
         <pre style="background: #2a2f36; padding: 10px; border-radius: 6px; color: #e1e1e1;">sudo apt install ffmpeg  # Ubuntu/Debian
-sudo dnf install ffmpeg  # Fedora
-sudo pacman -S ffmpeg   # Arch</pre>
+    sudo dnf install ffmpeg  # Fedora
+    sudo pacman -S ffmpeg   # Arch</pre>
         </div>
         """)
         install_layout.addWidget(instructions_text)
@@ -202,7 +210,7 @@ sudo pacman -S ffmpeg   # Arch</pre>
             QUrl('https://www.gyan.dev/ffmpeg/builds/')
         ))
         
-        path_btn = QPushButton('📁 Configurar PATH (Windows)')
+        path_btn = QPushButton('🔧 Configurar PATH (Windows)')
         path_btn.clicked.connect(self.show_path_instructions)
         
         buttons_layout.addWidget(download_btn)
@@ -215,7 +223,7 @@ sudo pacman -S ffmpeg   # Arch</pre>
         return widget
     
     def create_credentials_tab(self):
-        """Crear tab de credenciales (código existente mejorado)"""
+        """Crear tab de credenciales con scroll si es necesario"""
         cred_widget = QWidget()
         cred_layout = QVBoxLayout(cred_widget)
         
@@ -227,10 +235,10 @@ sudo pacman -S ffmpeg   # Arch</pre>
         instructions_label.setWordWrap(True)
         cred_layout.addWidget(instructions_label)
         
-        # Pasos
+        # ✅ Pasos con altura fija también
         steps_text = QTextEdit()
         steps_text.setReadOnly(True)
-        steps_text.setMaximumHeight(150)
+        steps_text.setFixedHeight(180)  # Altura fija
         steps_text.setHtml("""
         <ol style="line-height: 1.5;">
             <li>Ve a <a href="https://developer.spotify.com/dashboard/">Spotify Developer Dashboard</a></li>
@@ -273,7 +281,32 @@ sudo pacman -S ffmpeg   # Arch</pre>
         self.show_secret_cb.stateChanged.connect(self.toggle_secret_visibility)
         cred_layout.addWidget(self.show_secret_cb)
         
+        cred_layout.addStretch()  # Añadir stretch al final
         return cred_widget
+    
+    def resizeEvent(self, event):
+        """Manejar eventos de redimensionado para prevenir cambios automáticos"""
+        # Solo permitir redimensionado si es iniciado por el usuario
+        if hasattr(self, '_user_resizing') and not self._user_resizing:
+            event.ignore()
+            return
+        super().resizeEvent(event)
+
+    def moveEvent(self, event):
+        """Manejar movimiento de ventana sin redimensionado automático"""
+        # Marcar que NO estamos redimensionando durante el movimiento
+        self._user_resizing = False
+        super().moveEvent(event)
+
+    def mousePressEvent(self, event):
+        """Detectar inicio de redimensionado por usuario"""
+        self._user_resizing = True
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Detectar fin de redimensionado por usuario"""
+        self._user_resizing = False
+        super().mouseReleaseEvent(event)
     
     def create_settings_tab(self):
         """Crear tab de configuraciones adicionales"""

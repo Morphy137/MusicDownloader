@@ -106,9 +106,15 @@ class MorphyDownloaderQt(QWidget):
         
     def init_ui(self):
         self.setWindowTitle('MorphyDownloader')
-        self.setFixedSize(750, 520)
+        
+        # ✅ CAMBIO 1: Permitir redimensionado con tamaño mínimo más grande
+        self.setMinimumSize(800, 580)  # Aumentado para evitar solapamientos
+        self.resize(850, 620)  # Tamaño inicial más cómodo
+        # self.setFixedSize(750, 520)  # ❌ REMOVER esta línea
+        
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowCloseButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)  # ✅ Agregar maximizar
         
         # App icon
         icon_path = Config.get_asset_path('icon.ico')
@@ -119,19 +125,48 @@ class MorphyDownloaderQt(QWidget):
         layout.setContentsMargins(36, 24, 36, 24)
         layout.setSpacing(18)
 
+        # ✅ CAMBIO 2: Agregar header con título y botón config
+        header_layout = QHBoxLayout()
+        
+        title_label = QLabel('MorphyDownloader')
+        title_label.setFont(QFont('Inter', 18, QFont.Bold))
+        title_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
+        
+        # Botón de configuración
+        config_btn = QPushButton()
+        config_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        config_btn.setToolTip('Abrir configuración')
+        config_btn.setText('⚙️')  # O usar icono SVG si tienes
+        config_btn.setFixedSize(40, 40)
+        config_btn.setProperty("type", "secondary")
+        config_btn.clicked.connect(self.open_config)
+        
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(config_btn)
+        
+        layout.addLayout(header_layout)
+
         # URL de Spotify
         url_label = QLabel('URL de Spotify (track, álbum o playlist):')
         url_label.setFont(QFont('Inter', 12, QFont.Medium))
         self.url_entry = QLineEdit()
         self.url_entry.setFont(QFont('Inter', 12))
         self.url_entry.setPlaceholderText('Pega aquí la URL de Spotify...')
+        # ✅ CAMBIO 3: Política de expansión horizontal
+        self.url_entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(url_label)
         layout.addWidget(self.url_entry)
 
         # Carpeta de destino
-        folder_layout = QHBoxLayout()
+        # ✅ CAMBIO CORREGIDO: Layout vertical para evitar solapamientos
+        folder_section = QVBoxLayout()
         folder_label = QLabel('Carpeta de destino:')
         folder_label.setFont(QFont('Inter', 12, QFont.Medium))
+        folder_section.addWidget(folder_label)
+        
+        # Layout horizontal para el input y botón
+        folder_input_layout = QHBoxLayout()
         
         default_music_path = os.path.abspath('music')
         os.makedirs(default_music_path, exist_ok=True)
@@ -139,31 +174,32 @@ class MorphyDownloaderQt(QWidget):
         self.output_entry = QLineEdit(default_music_path)
         self.output_entry.setFont(QFont('JetBrains Mono', 11))
         self.output_entry.setReadOnly(True)
+        # ✅ Expansión correcta con tamaño mínimo
         self.output_entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.output_entry.setMinimumWidth(200)  # Ancho mínimo para evitar solapamiento
         
         browse_btn = QPushButton()
         browse_btn.setCursor(QCursor(Qt.PointingHandCursor))
         browse_btn.setToolTip('Elegir carpeta')
-        # Asignar icono SVG para seleccionar carpeta
         folder_select_icon = Config.get_asset_path('folder_select.svg')
         if os.path.exists(folder_select_icon):
             browse_btn.setIcon(QIcon(folder_select_icon))
             browse_btn.setIconSize(QSize(22, 22))
         else:
             browse_btn.setText('📁')
-        browse_btn.setFixedWidth(44)
+        browse_btn.setFixedSize(44, 44)  # Tamaño fijo para evitar deformación
         browse_btn.setProperty("type", "secondary")
         browse_btn.clicked.connect(self.choose_folder)
         
-        folder_layout.addWidget(folder_label)
-        folder_layout.addWidget(self.output_entry)
-        folder_layout.addWidget(browse_btn)
-        layout.addLayout(folder_layout)
+        folder_input_layout.addWidget(self.output_entry)
+        folder_input_layout.addWidget(browse_btn)
+        folder_section.addLayout(folder_input_layout)
+        
+        layout.addLayout(folder_section)
 
-        # Botón descargar
+        # Botón descargar - sin cambios necesarios
         self.download_btn = QPushButton()
         self.download_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        # Asignar icono SVG para descargar
         folder_download_icon = Config.get_asset_path('folder_download.svg')
         if os.path.exists(folder_download_icon):
             self.download_btn.setIcon(QIcon(folder_download_icon))
@@ -175,65 +211,101 @@ class MorphyDownloaderQt(QWidget):
         self.download_btn.clicked.connect(self.start_download)
         layout.addWidget(self.download_btn)
 
-        # Barra de progreso
+        # Barra de progreso - sin cambios
         self.progress = QProgressBar()
         self.progress.setValue(0)
         self.progress.setFixedHeight(26)
         self.progress.setTextVisible(True)
         layout.addWidget(self.progress)
 
-        # Área de log
+        # ✅ CAMBIO 6: Área de log con mejor política de tamaño
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
         self.output_box.setFont(QFont('JetBrains Mono', 10))
+        # Permitir expansión vertical
+        self.output_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.output_box.setMinimumHeight(140)
-        self.output_box.setMaximumHeight(180)
+        # self.output_box.setMaximumHeight(180)  # ❌ REMOVER límite máximo
         layout.addWidget(self.output_box)
 
-        # Estado y botones
+        # Estado y botones - MEJORADO para evitar solapamiento
         bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(8)  # Espacio reducido entre elementos
+        
         self.status_label = QLabel('')
         self.status_label.setFont(QFont('Inter', 12, QFont.Medium))
+        # Status label con tamaño mínimo para prevenir solapamiento
+        self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.status_label.setMinimumWidth(200)  # Ancho mínimo
+        self.status_label.setWordWrap(True)     # Permitir wrap si es necesario
         
-        open_btn = QPushButton()
-        open_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        open_btn.setToolTip('Abrir carpeta de destino')
-        # Asignar icono SVG para abrir carpeta
-        folder_open_icon = Config.get_asset_path('folder_open.svg')
-        if os.path.exists(folder_open_icon):
-            open_btn.setIcon(QIcon(folder_open_icon))
-            open_btn.setIconSize(QSize(22, 22))
-        else:
-            open_btn.setText('🗂️')
-        open_btn.setFixedWidth(44)
-        open_btn.setProperty("type", "secondary")
-        open_btn.clicked.connect(self.open_folder)
+        # Contenedor para botones con ancho fijo
+        buttons_container = QHBoxLayout()
+        buttons_container.setSpacing(4)
         
         self.cancel_btn = QPushButton()
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setToolTip('Cancelar descarga')
-        # Asignar icono SVG para cancelar
         folder_cancel_icon = Config.get_asset_path('folder_cancel.svg')
         if os.path.exists(folder_cancel_icon):
             self.cancel_btn.setIcon(QIcon(folder_cancel_icon))
             self.cancel_btn.setIconSize(QSize(22, 22))
         else:
             self.cancel_btn.setText('❌')
-        self.cancel_btn.setFixedWidth(44)
+        self.cancel_btn.setFixedSize(44, 44)  # Tamaño fijo
         self.cancel_btn.clicked.connect(self.cancel_download)
         self.cancel_btn.setProperty("type", "secondary")
         self.cancel_btn.setEnabled(False)
         
-        bottom_layout.addWidget(self.status_label)
-        bottom_layout.addStretch()
-        bottom_layout.addWidget(self.cancel_btn)
-        bottom_layout.addWidget(open_btn)
+        open_btn = QPushButton()
+        open_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        open_btn.setToolTip('Abrir carpeta de destino')
+        folder_open_icon = Config.get_asset_path('folder_open.svg')
+        if os.path.exists(folder_open_icon):
+            open_btn.setIcon(QIcon(folder_open_icon))
+            open_btn.setIconSize(QSize(22, 22))
+        else:
+            open_btn.setText('🗂️')
+        open_btn.setFixedSize(44, 44)  # Tamaño fijo
+        open_btn.setProperty("type", "secondary")
+        open_btn.clicked.connect(self.open_folder)
+        
+        buttons_container.addWidget(self.cancel_btn)
+        buttons_container.addWidget(open_btn)
+        
+        bottom_layout.addWidget(self.status_label, 1)  # Factor de stretch para expandir
+        bottom_layout.addLayout(buttons_container, 0)   # Sin stretch para mantener tamaño
         layout.addLayout(bottom_layout)
 
         self.setLayout(layout)
+
+
+    def open_config(self):
+        """Abrir ventana de configuración"""
+        try:
+            from .config_dialog import ConfigDialog
+            config_dialog = ConfigDialog(self)
+            
+            # Centrar en la ventana principal
+            parent_geometry = self.geometry()
+            dialog_size = config_dialog.size()
+            x = parent_geometry.x() + (parent_geometry.width() - dialog_size.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - dialog_size.height()) // 2
+            config_dialog.move(x, y)
+            
+            config_dialog.exec()
+        except ImportError as e:
+            QMessageBox.warning(self, "Error", f"No se pudo abrir la configuración: {e}")
+
+    # ✅ CAMBIO 9: Método para manejar redimensionado
+    def resizeEvent(self, event):
+        """Manejar redimensionado de ventana"""
+        super().resizeEvent(event)
+        # Asegurar que los elementos se ajusten correctamente
+        self.update()
         
     def setup_styling(self):
-        """Configurar estilos CSS"""
+        """Configurar estilos CSS mejorados"""
         self.setStyleSheet(f"""
             QWidget {{ 
                 background: {BG_COLOR}; 
@@ -248,6 +320,7 @@ class MorphyDownloaderQt(QWidget):
                 border: 2px solid transparent;
                 font-size: 14px;
                 font-weight: 400;
+                min-height: 20px;  /* ✅ Altura mínima */
             }}
             QLineEdit:focus {{
                 border: 2px solid {PRIMARY_COLOR};
@@ -260,6 +333,7 @@ class MorphyDownloaderQt(QWidget):
                 border: 1px solid #2a2f36; 
                 font-size: 12px;
                 padding: 8px;
+                min-height: 100px;  /* ✅ Altura mínima flexible */
             }}
             QPushButton {{ 
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 {PRIMARY_COLOR}, stop: 1 {PRIMARY_DARK}); 
@@ -270,6 +344,7 @@ class MorphyDownloaderQt(QWidget):
                 font-size: 14px;
                 border: none;
                 min-height: 20px;
+                min-width: 80px;  /* ✅ Ancho mínimo */
             }}
             QPushButton:hover {{ 
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e91e63, stop: 1 #c2185b);
@@ -285,10 +360,10 @@ class MorphyDownloaderQt(QWidget):
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #4a4a4a, stop: 1 #3a3a3a);
                 color: white;
                 border-radius: 12px;
-                padding: 12px 12px;
+                padding: 8px 8px;  /* ✅ Padding más pequeño para botones secundarios */
                 font-size: 12px;
-                min-width: 20px;
-                min-height: 20px;
+                min-width: 32px;
+                min-height: 32px;
                 border: none;
             }}
             QPushButton[type="secondary"]:hover {{
@@ -310,6 +385,7 @@ class MorphyDownloaderQt(QWidget):
                 font-weight: 500;
                 height: 24px;
                 border: 1px solid #2a2f36;
+                min-height: 24px;  /* ✅ Altura mínima consistente */
             }}
             QProgressBar::chunk {{ 
                 background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 {PRIMARY_COLOR}, stop: 1 #e91e63); 
@@ -319,6 +395,7 @@ class MorphyDownloaderQt(QWidget):
             QLabel {{
                 color: {FG_COLOR};
                 font-weight: 500;
+                min-height: 16px;  /* ✅ Altura mínima para labels */
             }}
         """)
 
