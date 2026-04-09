@@ -113,7 +113,9 @@ class MorphyDownloaderQt(QWidget):
         
     def init_ui(self):
         self.setWindowTitle(_('title'))
-        self.setMinimumSize(650, 750)
+        # Tamaño base seguro para resoluciones menores (ej. 720p)
+        self.setMinimumSize(500, 550)
+        self.resize(650, 700)
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowCloseButtonHint, True)
         

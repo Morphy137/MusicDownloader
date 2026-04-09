@@ -41,9 +41,9 @@ class ConfigDialog(QDialog):
     def init_ui(self):
         self.setWindowTitle(_('settings'))
         
-        # Tamaño inicial para evitar pantallas gigantes, usa scroll si no cabe
-        self.setMinimumSize(700, 600)
-        self.resize(750, 800)
+        # Tamaño mínimo seguro para pantallas pequeñas (ej. 1366x768) y scroll para que no se corte
+        self.setMinimumSize(500, 500)
+        self.resize(650, 650)
         self.setModal(True)
         
         # Configurar icono de aplicación
