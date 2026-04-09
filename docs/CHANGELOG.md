@@ -4,7 +4,7 @@ Este documento sirve como registro oficial de las características, funciones y 
 
 ## [Próxima Versión / En Desarrollo]
 
-### Tareas en progreso (Branch: `updating`):
+### [1.1.2] - Actualización Temas y Lyrics!:
 - **Base y Organización**: 
   - Creación de este documento (`docs/CHANGELOG.md`) para el seguimiento del historial del proyecto.
   - Preparación de la arquitectura base para soporte Multi-idioma (Inglés y Español).
@@ -20,7 +20,7 @@ Este documento sirve como registro oficial de las características, funciones y 
 
 ---
 
-## [1.0.0] - Versión Anterior Principal
+## [1.0.0] - Versión Inicial
 - **Interfaz (GUI)**:
   - Nueva GUI moderna en PySide6 con tamaño dinámico y optimizado.
   - Implementación de Iconos gráficos en todos los botones para mejor interacción.
