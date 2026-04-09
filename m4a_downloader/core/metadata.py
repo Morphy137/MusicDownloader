@@ -44,8 +44,36 @@ class MetadataSetter:
             return ssl_context
     
     @staticmethod
+    def _fetch_lyrics(artist, title):
+        import urllib.request
+        import urllib.parse
+        import json
+        try:
+            url = f"https://lrclib.net/api/get?artist_name={urllib.parse.quote(artist)}&track_name={urllib.parse.quote(title)}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'MorphyDownloader'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode('utf-8'))
+                    if data and isinstance(data, dict):
+                        return data.get('syncedLyrics') or data.get('plainLyrics')
+        except Exception as e:
+            logger.debug(f"Failed to fetch lyrics: {e}")
+        return None
+
+    @staticmethod
     def set_metadata(metadata, file_path):
         """Set metadata for m4a or mp3 file"""
+        from PySide6.QtCore import QSettings
+        settings = QSettings('MorphyDownloader', 'Config')
+        download_lyrics_opt = settings.value('download_lyrics', False, type=bool)
+        lyrics = None
+        
+        if download_lyrics_opt:
+            logger.debug("Fetching lyrics...")
+            artists = metadata.get("artists", [])
+            artist_name = artists[0] if artists else ''
+            lyrics = MetadataSetter._fetch_lyrics(artist_name, metadata.get("track_title", ""))
+
         try:
             if file_path.lower().endswith('.m4a'):
                 # Set basic metadata for M4A
@@ -55,6 +83,10 @@ class MetadataSetter:
                 mp4file['\xa9alb'] = metadata.get("album_name", "")  # Album
                 mp4file['\xa9day'] = metadata.get("release_date", "")  # Year
                 mp4file['trkn'] = [(metadata.get("track_number", 0), 0)]  # Track number
+                
+                if lyrics:
+                    mp4file['\xa9lyr'] = lyrics
+                    
                 mp4file.save()
                 logger.debug(f"Basic metadata set for {os.path.basename(file_path)} (M4A)")
             elif file_path.lower().endswith('.mp3'):
@@ -74,6 +106,12 @@ class MetadataSetter:
                 audio.add(TALB(encoding=3, text=metadata.get("album_name", "")))
                 audio.add(TDRC(encoding=3, text=metadata.get("release_date", "")))
                 audio.add(TRCK(encoding=3, text=str(metadata.get("track_number", 0))))
+                
+                if lyrics:
+                    from mutagen.id3 import USLT
+                    audio.delall("USLT")
+                    audio.add(USLT(encoding=3, lang='eng', text=lyrics))
+                    
                 audio.save(file_path, v2_version=3)
                 logger.debug(f"Basic metadata set for {os.path.basename(file_path)} (MP3)")
             else:

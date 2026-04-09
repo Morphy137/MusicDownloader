@@ -10,6 +10,21 @@ import os
 import time
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from PySide6.QtCore import QSettings
+
+def get_formatted_filename(track_info, template, audio_format):
+    safe = lambda s: re.sub(r'[\\/:*?"<>|]', '', str(s)).strip()
+    mapping = {
+        "{title}": safe(track_info.get('track_title', 'Unknown')),
+        "{artist}": safe(track_info.get('artist_name', 'Unknown')),
+        "{album}": safe(track_info.get('album_name', 'Unknown')),
+        "{track_number}": f"{track_info.get('track_number', 0):02d}",
+        "{ext}": audio_format
+    }
+    filename = template
+    for k, v in mapping.items():
+        filename = filename.replace(k, v)
+    return filename
 
 app = typer.Typer()
 console = Console()
@@ -84,16 +99,23 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
         playlist_folder = output
         is_playlist = False
         
+        settings = QSettings('MorphyDownloader', 'Config')
+        create_subfolders = settings.value('create_subfolders', False, type=bool)
+        naming_format = settings.value('naming_format', '{title}.{ext}')
+        
         if "track" in url:
             log("🎵 Obteniendo información de la canción...")
             songs = [spotify.get_track_info(url)]
+            if create_subfolders:
+                safe_album = re.sub(r'[^\w\-\s\.]', '', songs[0].get('album_name', 'Tracks')).strip()
+                playlist_folder = os.path.join(output, safe_album)
         else:
-            log("📋 Obteniendo información de la playlist...")
+            log("📋 Obteniendo información de la playlist/álbum...")
             is_playlist = True
             playlist_name, songs = spotify.get_playlist_tracks(url)
-            # Limpiar nombre de carpeta
-            safe_name = re.sub(r'[^\w\-\s\.]', '', playlist_name).strip()
-            playlist_folder = os.path.join(output, safe_name)
+            if create_subfolders:
+                safe_name = re.sub(r'[^\w\-\s\.]', '', playlist_name).strip()
+                playlist_folder = os.path.join(output, safe_name)
         
         # Configurar directorios
         temp_dir = os.path.join(playlist_folder, "tmp")
@@ -112,11 +134,9 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
         downloaded = 0
         total = len(songs)
         
-        # Descargar una sola canción (para paralelización)
+        # Descargar una sola canción
         def download_song(track_info, i):
-            title = re.sub(r'[\\/:*?"<>|]', '', track_info['track_title'])
-            artist = re.sub(r'[\\/:*?"<>|]', '', track_info['artist_name'])
-            expected_name = f"{title} - {artist}.{audio_format}"
+            expected_name = get_formatted_filename(track_info, naming_format, audio_format)
             destination = os.path.join(playlist_folder, expected_name)
             
             # Skip si ya existe
