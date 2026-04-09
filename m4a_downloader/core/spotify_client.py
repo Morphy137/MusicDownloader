@@ -138,3 +138,49 @@ class SpotifyClient:
         except Exception as e:
             logger.error(f"Error obteniendo playlist: {e}")
             raise ValueError(f"Error obteniendo playlist: {e}")
+
+    def get_album_tracks(self, album_url: str) -> Tuple[str, List[Dict]]:
+        """Get all tracks from a Spotify album"""
+        try:
+            album = self.sp.album(album_url)
+            album_name = album.get("name", "Unnamed Album")
+            album_art = album["images"][0]["url"] if album["images"] else ""
+            release_date = album.get("release_date", "")
+            
+            tracks = []
+            results = self.sp.album_tracks(album_url)
+            tracks_raw = results['items']
+            while results['next']:
+                results = self.sp.next(results)
+                tracks_raw.extend(results['items'])
+                
+            track_infos = []
+            for track in tracks_raw:
+                try:
+                    track_info = {
+                        "artist_name": track["artists"][0]["name"],
+                        "track_title": track["name"],
+                        "track_number": track["track_number"],
+                        "isrc": "", 
+                        "album_art": album_art,
+                        "album_name": album_name,
+                        "release_date": release_date,
+                        "artists": [artist["name"] for artist in track["artists"]],
+                    }
+                    track_infos.append(track_info)
+                except Exception as e:
+                    logger.warning(f"Error procesando track de album: {e}")
+            
+            logger.debug(f"✅ {len(track_infos)} tracks de album procesados")
+            return album_name, track_infos
+            
+        except spotipy.exceptions.SpotifyException as e:
+            if e.http_status == 404:
+                raise ValueError(f"Album no encontrado: {album_url}")
+            elif e.http_status == 401:
+                raise ValueError("Credenciales de Spotify inválidas")
+            else:
+                raise ValueError(f"Error de Spotify API: {e}")
+        except Exception as e:
+            logger.error(f"Error obteniendo album: {e}")
+            raise ValueError(f"Error obteniendo album: {e}")

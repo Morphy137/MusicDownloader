@@ -109,8 +109,15 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
             if create_subfolders:
                 safe_album = re.sub(r'[^\w\-\s\.]', '', songs[0].get('album_name', 'Tracks')).strip()
                 playlist_folder = os.path.join(output, safe_album)
+        elif "album" in url:
+            log("💿 Obteniendo información del álbum...")
+            is_playlist = True
+            playlist_name, songs = spotify.get_album_tracks(url)
+            if create_subfolders:
+                safe_name = re.sub(r'[^\w\-\s\.]', '', playlist_name).strip()
+                playlist_folder = os.path.join(output, safe_name)
         else:
-            log("📋 Obteniendo información de la playlist/álbum...")
+            log("📋 Obteniendo información de la playlist...")
             is_playlist = True
             playlist_name, songs = spotify.get_playlist_tracks(url)
             if create_subfolders:
