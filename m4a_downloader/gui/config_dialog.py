@@ -87,8 +87,8 @@ class ConfigDialog(QDialog):
         # Botones de acción
         button_layout = QHBoxLayout()
         
-        test_btn = QPushButton(_('test_creds_btn'))
-        self._set_icon_or_text(test_btn, 'test', _('test_creds_btn'))
+        test_btn = QPushButton(_('test_credentials'))
+        self._set_icon_or_text(test_btn, 'test', _('test_credentials'))
         test_btn.clicked.connect(self.test_credentials_only)
         test_btn.setProperty("type", "secondary")
         
@@ -192,13 +192,13 @@ class ConfigDialog(QDialog):
         format_group_layout.addWidget(self.format_info_label)
         format_layout.addWidget(format_group)
         
-        ffmpeg_group = QGroupBox("FFmpeg (MP3 requirment)")
+        ffmpeg_group = QGroupBox("FFmpeg")
         ffmpeg_layout = QVBoxLayout(ffmpeg_group)
         self.ffmpeg_status_label = QLabel()
         self.ffmpeg_status_label.setWordWrap(True)
         ffmpeg_layout.addWidget(self.ffmpeg_status_label)
         
-        check_ffmpeg_btn = QPushButton("Check FFmpeg")
+        check_ffmpeg_btn = QPushButton(_('check_ffmpeg'))
         check_ffmpeg_btn.clicked.connect(self.check_ffmpeg_status)
         ffmpeg_layout.addWidget(check_ffmpeg_btn)
         
@@ -212,7 +212,7 @@ class ConfigDialog(QDialog):
         settings_layout = QVBoxLayout(settings_widget)
         
         # --- Grupo Apariencia y UI ---
-        ui_group = QGroupBox("Apariencia e Idioma / Appearance")
+        ui_group = QGroupBox(_('appearance_group'))
         ui_layout = QVBoxLayout(ui_group)
         
         lang_layout = QHBoxLayout()
@@ -230,7 +230,10 @@ class ConfigDialog(QDialog):
         theme_layout.addWidget(QLabel(_('theme')))
         self.theme_combo = QComboBox()
         for theme_id, theme_name in ThemeManager.get_theme_names():
-            self.theme_combo.addItem(theme_name, theme_id)
+            translated_name = _(f'theme_{theme_id}')
+            if translated_name == f'theme_{theme_id}':
+                translated_name = theme_name
+            self.theme_combo.addItem(translated_name, theme_id)
         self.theme_combo.currentIndexChanged.connect(self.on_theme_changed)
         theme_layout.addWidget(self.theme_combo)
         theme_layout.addStretch()
@@ -239,7 +242,7 @@ class ConfigDialog(QDialog):
         settings_layout.addWidget(ui_group)
         
         # --- Grupo Archivos y Carpetas ---
-        file_group = QGroupBox("Archivos / Files")
+        file_group = QGroupBox(_('files_group'))
         file_layout = QVBoxLayout(file_group)
         
         file_layout.addWidget(QLabel(_('output_folder')))
@@ -269,7 +272,7 @@ class ConfigDialog(QDialog):
         settings_layout.addWidget(file_group)
         
         # --- Grupo Avanzado ---
-        adv_group = QGroupBox("Avanzado / Advanced")
+        adv_group = QGroupBox(_('advanced_group'))
         adv_layout = QVBoxLayout(adv_group)
         
         quality_layout = QHBoxLayout()
@@ -282,7 +285,7 @@ class ConfigDialog(QDialog):
         adv_layout.addLayout(quality_layout)
         
         parallel_layout = QHBoxLayout()
-        parallel_layout.addWidget(QLabel("Descargas Paralelas:"))
+        parallel_layout.addWidget(QLabel(_('parallel_downloads')))
         self.parallel_spinbox = QSpinBox()
         self.parallel_spinbox.setRange(1, 8)
         self.parallel_spinbox.setValue(2)
@@ -290,7 +293,7 @@ class ConfigDialog(QDialog):
         parallel_layout.addStretch()
         adv_layout.addLayout(parallel_layout)
         
-        self.dont_show_again_cb = QCheckBox("No mostrar configuración al inicio / Don't show at startup")
+        self.dont_show_again_cb = QCheckBox(_('dont_show_startup'))
         adv_layout.addWidget(self.dont_show_again_cb)
         
         settings_layout.addWidget(adv_group)

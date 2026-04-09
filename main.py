@@ -179,8 +179,17 @@ def main():
     else:
         # Modo GUI (por defecto)
         try:
+            # Fix Taskbar Icon in Windows (avoid default python logo)
+            if platform.system() == "Windows":
+                import ctypes
+                myappid = 'harmony.music.downloader.1'
+                try:
+                    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+                except Exception:
+                    pass
+
             app = QApplication(sys.argv)
-            app.setApplicationName("MorphyDownloader")
+            app.setApplicationName("Harmony")
             app.setApplicationVersion("1.0.0")
             
             # Cargar configuración guardada si existe

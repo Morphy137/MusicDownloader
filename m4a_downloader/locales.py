@@ -5,7 +5,7 @@ from PySide6.QtCore import QSettings
 
 TRANSLATIONS = {
     "es": {
-        "title": "MorphyDownloader",
+        "title": "Harmony",
         "app_subtitle": "Descargador M4A/MP3",
         "spotify_url": "URL de Spotify (track, álbum o playlist):",
         "paste_url_placeholder": "Pega aquí la URL de Spotify...",
@@ -29,14 +29,14 @@ TRANSLATIONS = {
         "settings": "Configuración",
         
         # Dialogo de Configuración
-        "welcome": "¡Bienvenido a MorphyDownloader!",
+        "welcome": "¡Bienvenido a Harmony!",
         "initial_setup_subtitle": "Configuración inicial - Credenciales y formato",
         "tab_credentials": "Credenciales",
         "tab_format": "Formato de Audio",
         "tab_settings": "Configuración general",
         "test_credentials": "Test Credenciales",
         "save_continue": "Guardar y Continuar",
-        "spotify_welcome": "Descarga audio en alta calidad desde YouTube usando las playlists de Spotify.\n\nSolo necesitas configurar tus credenciales:",
+        "spotify_welcome": "Harmony descarga audio en alta calidad desde YouTube usando las playlists de Spotify.\n\nSolo necesitas configurar tus credenciales:",
         "spotify_instructions": "Crea una aplicación en el Dashboard Developer de Spotify:",
         "open_dashboard": "Abrir Spotify Developer Dashboard",
         "client_id": "Client ID:",
@@ -62,9 +62,27 @@ TRANSLATIONS = {
         "naming_default": "Predeterminado: Título",
         "naming_artist_title": "Artista - Título",
         "naming_track_title": "Num - Título",
+        
+        # Grupos de Configuración
+        "appearance_group": "Apariencia e Idioma",
+        "files_group": "Archivos y Carpetas",
+        "advanced_group": "Avanzado",
+        "parallel_downloads": "Descargas Paralelas:",
+        "dont_show_startup": "No mostrar configuración al inicio",
+        "check_ffmpeg": "Verificar FFmpeg",
+        
+        # Temas
+        "theme_dark_mora": "Mora Oscura (Defecto)",
+        "theme_dark_ocean": "Océano Noche",
+        "theme_dark_forest": "Bosque Oscuro",
+        "theme_dark_neon": "Púrpura Neón",
+        "theme_light_snow": "Blanco Nieve",
+        "theme_light_sky": "Cielo Claro",
+        "theme_light_mint": "Menta Fresca",
+        "theme_light_cream": "Crema Suave",
     },
     "en": {
-        "title": "MorphyDownloader",
+        "title": "Harmony",
         "app_subtitle": "M4A/MP3 Downloader",
         "spotify_url": "Spotify URL (track, album, or playlist):",
         "paste_url_placeholder": "Paste Spotify URL here...",
@@ -88,14 +106,14 @@ TRANSLATIONS = {
         "settings": "Settings",
         
         # Settings Dialog
-        "welcome": "Welcome to MorphyDownloader!",
+        "welcome": "Welcome to Harmony!",
         "initial_setup_subtitle": "Initial Setup - Credentials and audio format",
         "tab_credentials": "Credentials",
         "tab_format": "Audio Format",
         "tab_settings": "General Settings",
         "test_credentials": "Test Credentials",
         "save_continue": "Save & Continue",
-        "spotify_welcome": "MorphyDownloader gets high-quality audio from YouTube with full Spotify metadata.\n\nYou only need to config your credentials:",
+        "spotify_welcome": "Harmony gets high-quality audio from YouTube with full Spotify metadata.\n\nYou only need to config your credentials:",
         "spotify_instructions": "To use it, create an app in the Spotify Developer dashboard:",
         "open_dashboard": "Open Spotify Developer Dashboard",
         "client_id": "Client ID:",
@@ -121,6 +139,24 @@ TRANSLATIONS = {
         "naming_default": "Default: Title",
         "naming_artist_title": "Artist - Title",
         "naming_track_title": "Track Num - Title",
+        
+        # Configuration Groups
+        "appearance_group": "Appearance & Language",
+        "files_group": "Files & Folders",
+        "advanced_group": "Advanced Settings",
+        "parallel_downloads": "Parallel Downloads:",
+        "dont_show_startup": "Don't show config at startup",
+        "check_ffmpeg": "Check FFmpeg",
+        
+        # Themes
+        "theme_dark_mora": "Dark Blackberry (Default)",
+        "theme_dark_ocean": "Night Ocean",
+        "theme_dark_forest": "Dark Forest",
+        "theme_dark_neon": "Neon Purple",
+        "theme_light_snow": "Snow White",
+        "theme_light_sky": "Clear Sky",
+        "theme_light_mint": "Fresh Mint",
+        "theme_light_cream": "Soft Cream",
     }
 }
 

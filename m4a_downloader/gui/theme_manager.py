@@ -181,13 +181,14 @@ class ThemeManager:
             color: #888;
         }}
         QPushButton[type="secondary"] {{
-            background: #4a4a4a if {thm["is_dark"]} else #e0e0e0;
-            color: #fff if {thm["is_dark"]} else #333;
+            background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 {thm["PRIMARY_COLOR"]}, stop: 1 {thm["PRIMARY_DARK"]});
+            border: 1px solid {thm["ENTRY_BG"]};
+            color: white;
             border-radius: 12px;
             padding: 8px;
         }}
         QPushButton[type="secondary"]:hover {{
-            background: #5a5a5a if {thm["is_dark"]} else #d0d0d0;
+            background: {thm["PRIMARY_COLOR"]};
         }}
         QProgressBar {{ 
             background: {thm["ENTRY_BG"]}; 
