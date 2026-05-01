@@ -370,10 +370,6 @@ class ConfigDialog(QDialog):
         client_id = self.client_id_entry.text().strip()
         client_secret = self.client_secret_entry.text().strip()
         
-        if not client_id or not client_secret:
-            QMessageBox.warning(self, _('error'), 'Please fill Spotify Credentials')
-            return
-        
         selected_format = self.format_combo.currentText()
         if selected_format == 'mp3' and not Config.check_ffmpeg():
             reply = QMessageBox.question(self, 'FFmpeg', _('ffmpeg_missing_warn'),
@@ -384,7 +380,8 @@ class ConfigDialog(QDialog):
             else:
                 return
         
-        if not self.test_credentials():
+        has_spotify_credentials = bool(client_id and client_secret)
+        if has_spotify_credentials and not self.test_credentials():
             reply = QMessageBox.question(self, 'Credentials Error', 'Invalid Credentials. Save anyway?',
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No: return
@@ -403,8 +400,12 @@ class ConfigDialog(QDialog):
         self.settings.setValue('default_output_dir', self.output_dir_entry.text())
         self.settings.setValue('dont_show_config', self.dont_show_again_cb.isChecked())
         
-        os.environ['SPOTIPY_CLIENT_ID'] = client_id
-        os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
+        if has_spotify_credentials:
+            os.environ['SPOTIPY_CLIENT_ID'] = client_id
+            os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
+        else:
+            os.environ.pop('SPOTIPY_CLIENT_ID', None)
+            os.environ.pop('SPOTIPY_CLIENT_SECRET', None)
         
         # Emitir señales para actualizar main UI
         self.language_changed.emit(self.lang_combo.currentData())
@@ -460,8 +461,7 @@ class ConfigDialog(QDialog):
 def should_show_config():
     settings = QSettings('MorphyDownloader', 'Config')
     if settings.value('dont_show_config', False, type=bool):
-        if settings.value('spotify_client_id') and settings.value('spotify_client_secret'):
-            return False
+        return False
     if not os.environ.get('SPOTIPY_CLIENT_ID') or not os.environ.get('SPOTIPY_CLIENT_SECRET'):
         return True
     return False

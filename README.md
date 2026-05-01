@@ -1,6 +1,6 @@
 # M4A_Downloader 🎵
 
-**A modern, open-source tool to download songs, albums, or playlists from Spotify** as high-quality M4A files, obtaining the audio from YouTube and automatically adding full metadata (title, artist, album, cover art, year, etc.). It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI). Now with a fully redesigned interface, button icons, and no ffmpeg dependency.
+**A modern, open-source tool to download songs, albums, or playlists from Spotify and videos/playlists from YouTube** as high-quality M4A files. Spotify links obtain audio from YouTube and automatically add full metadata (title, artist, album, cover art, year, etc.); YouTube links download directly with metadata from YouTube. It features both an intuitive graphical interface (GUI) and a powerful command-line interface (CLI). Now with a fully redesigned interface, button icons, and no ffmpeg dependency.
 
 ![MorphyDownloader GUI](assets/img/screnshot.png)
 
@@ -8,10 +8,11 @@
 
 ## 🚀 How does it work?
 
-1. Retrieves song, album, or playlist information from Spotify using the official API (you need your own credentials).
-2. Searches for the best YouTube match for each track using yt-dlp.
-3. Downloads the audio in the best available quality as M4A (no conversion or ffmpeg required).
-4. Adds full metadata and cover art from Spotify using mutagen.
+1. Detects whether the URL is from Spotify or YouTube.
+2. For Spotify links, retrieves song, album, or playlist information using the official API (you need your own credentials).
+3. Searches for the best YouTube match for each Spotify track using yt-dlp, or reads YouTube videos/playlists directly.
+4. Downloads the audio in the best available quality as M4A (no conversion or ffmpeg required).
+5. Adds metadata and cover art using Spotify or YouTube information via mutagen.
 5. The process is fully automatic, robust, and logs progress clearly in both CLI and GUI.
 
 ![MorphyDownloader URL](assets/img/URL_Song.png)
@@ -63,7 +64,7 @@ To launch the GUI:
 python main.py
 ```
 
-Paste your Spotify URL, choose the output folder, and track progress in real time. You can now change settings at any time using the configuration button.
+Paste your Spotify or YouTube URL, choose the output folder, and track progress in real time. You can now change settings at any time using the configuration button.
 
 ### Command Line Interface (CLI)
 
@@ -75,7 +76,7 @@ python -m m4a_downloader.cli --url "https://open.spotify.com/playlist/PLAYLIST_I
 
 Main options:
 
-- `--url`: Spotify playlist, album, or track URL
+- `--url`: Spotify playlist/album/track URL or YouTube video/playlist URL
 - `--output`: Output folder for M4A files
 
 ---

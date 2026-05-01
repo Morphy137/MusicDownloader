@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import subprocess
 import shutil
+from urllib.parse import parse_qs, urlparse
 from ..config import Config
 
 logger = logging.getLogger(__name__)
@@ -267,6 +268,111 @@ class YouTubeDownloader:
             })
         
         return base_opts
+
+    def _get_info_opts(self, flat_playlist: bool = False) -> dict:
+        """Opciones seguras para inspeccionar URLs sin descargar."""
+        return {
+            'quiet': True,
+            'skip_download': True,
+            'extract_flat': flat_playlist,
+            'force_json': True,
+            'no_warnings': True,
+            'ignoreerrors': True,
+            'socket_timeout': 20,
+        }
+
+    def _select_thumbnail(self, info: dict) -> str:
+        thumbnails = info.get('thumbnails') or []
+        for thumbnail in reversed(thumbnails):
+            url = thumbnail.get('url', '')
+            if url and any(ext in url.lower() for ext in ('.jpg', '.jpeg', '.png')):
+                return url
+        if thumbnails:
+            return thumbnails[-1].get('url', '')
+        return info.get('thumbnail', '')
+
+    def _metadata_from_youtube_info(self, info: dict, track_number: int = 1) -> dict:
+        artist = (
+            info.get('artist')
+            or info.get('creator')
+            or info.get('uploader')
+            or info.get('channel')
+            or 'YouTube'
+        )
+        title = info.get('track') or info.get('title') or 'Unknown title'
+        upload_date = info.get('upload_date') or ''
+        release_date = ""
+        if len(upload_date) == 8:
+            release_date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}"
+
+        return {
+            "artist_name": artist,
+            "track_title": title,
+            "track_number": track_number,
+            "isrc": "",
+            "album_art": self._select_thumbnail(info),
+            "album_name": info.get('playlist_title') or info.get('album') or "YouTube",
+            "release_date": release_date,
+            "artists": [artist],
+            "youtube_url": info.get('webpage_url') or info.get('original_url') or info.get('url', ''),
+        }
+
+    def get_youtube_entries(self, url: str) -> List[dict]:
+        """Extraer videos descargables desde una URL de YouTube video/playlist."""
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+        is_playlist = "list" in query or parsed.path.lower().startswith("/playlist")
+
+        with yt_dlp.YoutubeDL(self._get_info_opts(flat_playlist=is_playlist)) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        if not info:
+            raise ValueError("No se pudo leer la URL de YouTube")
+
+        if info.get('_type') == 'playlist' or is_playlist:
+            playlist_title = info.get('title') or info.get('playlist_title') or "YouTube Playlist"
+            entries = []
+            for index, entry in enumerate(info.get('entries') or [], start=1):
+                if not entry:
+                    continue
+                video_id = entry.get('id')
+                video_url = entry.get('webpage_url') or entry.get('url')
+                if video_id and (not video_url or not video_url.startswith('http')):
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
+                if not video_url:
+                    logger.warning(f"Skipping playlist item without URL: {entry.get('title', 'Unknown')}")
+                    continue
+                entries.append({
+                    "url": video_url,
+                    "title": entry.get('title') or f"Track {index}",
+                    "playlist_title": playlist_title,
+                    "track_number": index,
+                })
+
+            if not entries:
+                raise ValueError("La playlist de YouTube no contiene videos descargables")
+
+            return entries
+
+        return [{
+            "url": info.get('webpage_url') or url,
+            "title": info.get('title') or "YouTube video",
+            "playlist_title": "",
+            "track_number": 1,
+            "info": info,
+        }]
+
+    def get_youtube_metadata(self, url: str, track_number: int = 1, playlist_title: str = "") -> dict:
+        """Obtener metadata completa para un video de YouTube."""
+        with yt_dlp.YoutubeDL(self._get_info_opts(flat_playlist=False)) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        if not info:
+            raise ValueError(f"No se pudo leer la metadata de YouTube: {url}")
+
+        if playlist_title:
+            info['playlist_title'] = playlist_title
+        return self._metadata_from_youtube_info(info, track_number)
     
     def _convert_to_mp3(self, m4a_file: str) -> str:
         """Convertir archivo M4A a MP3 usando FFmpeg directamente"""
@@ -315,9 +421,10 @@ class YouTubeDownloader:
             logger.error(f"Error during FFmpeg conversion: {e}")
             raise
     
-    def download_audio(self, yt_link: str) -> str:
+    def download_audio(self, yt_link: str, playlist: bool = False) -> str:
         """Download audio from YouTube link in specified format"""
         ydl_opts = self._get_ydl_opts()
+        ydl_opts['noplaylist'] = not playlist
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:

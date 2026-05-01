@@ -145,17 +145,20 @@ def main():
     show_dependencies_status()
     
     parser = argparse.ArgumentParser(
-        description='MorphyDownloader - Descarga música de Spotify como MP3'
+        description='MorphyDownloader - Descarga música desde Spotify o YouTube'
     )
     parser.add_argument('--cli', action='store_true', help='Usar modo línea de comandos')
-    parser.add_argument('-u', '--url', type=str, help='URL de Spotify (solo para modo CLI)')
+    parser.add_argument('-u', '--url', type=str, help='URL de Spotify o YouTube (solo para modo CLI)')
     parser.add_argument('-o', '--output', type=str, default='music', help='Directorio de salida')
     
     args, unknown = parser.parse_known_args()
     
     if args.cli or args.url or unknown:
         # Modo CLI
-        if not check_spotify_credentials():
+        from m4a_downloader.utils import is_spotify_url
+        needs_spotify = bool(args.url and is_spotify_url(args.url))
+
+        if needs_spotify and not check_spotify_credentials():
             print("❌ Error: Credenciales de Spotify no configuradas.")
             print("\n🔧 Configura las variables de entorno:")
             print("SPOTIPY_CLIENT_ID=tu_client_id")
@@ -201,24 +204,7 @@ def main():
                 from m4a_downloader.gui.config_dialog import ConfigDialog
                 config_dialog = ConfigDialog()
                 if config_dialog.exec() != QDialog.Accepted:
-                    print("❌ Configuración cancelada")
-                    sys.exit(1)
-            
-            # Verificar dependencias críticas después de la configuración
-            critical_issues = []
-            
-            if not check_spotify_credentials():
-                critical_issues.append("Credenciales de Spotify no configuradas")
-            
-            if critical_issues:
-                QMessageBox.critical(
-                    None, 
-                    "Dependencias Críticas Faltantes", 
-                    "MorphyDownloader necesita las siguientes configuraciones:\n\n" +
-                    "\n".join([f"• {issue}" for issue in critical_issues]) +
-                    "\n\nPor favor, completa la configuración inicial."
-                )
-                sys.exit(1)
+                    print("⚠️ Configuración cancelada. Puedes descargar desde YouTube sin credenciales de Spotify.")
             
             # Lanzar GUI principal
             from m4a_downloader.gui.qt_gui import MorphyDownloaderQt

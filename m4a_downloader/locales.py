@@ -7,8 +7,8 @@ TRANSLATIONS = {
     "es": {
         "title": "Harmony",
         "app_subtitle": "Descargador M4A/MP3",
-        "spotify_url": "URL de Spotify (track, álbum o playlist):",
-        "paste_url_placeholder": "Pega aquí la URL de Spotify...",
+        "spotify_url": "URL de Spotify o YouTube:",
+        "paste_url_placeholder": "Pega una canción, álbum, playlist o video...",
         "audio_config": "Configuración de Audio",
         "format": "Formato:",
         "quality": "Calidad:",
@@ -36,7 +36,7 @@ TRANSLATIONS = {
         "tab_settings": "Configuración general",
         "test_credentials": "Test Credenciales",
         "save_continue": "Guardar y Continuar",
-        "spotify_welcome": "Harmony descarga audio en alta calidad desde YouTube usando las playlists de Spotify.\n\nSolo necesitas configurar tus credenciales:",
+        "spotify_welcome": "Harmony descarga desde Spotify y YouTube. Las credenciales solo son necesarias para enlaces de Spotify; YouTube funciona directo.",
         "spotify_instructions": "Crea una aplicación en el Dashboard Developer de Spotify:",
         "open_dashboard": "Abrir Spotify Developer Dashboard",
         "client_id": "Client ID:",
@@ -53,8 +53,8 @@ TRANSLATIONS = {
         # Alertas
         "error": "Error",
         "success": "Éxito",
-        "enter_url": "Por favor, ingresa una URL de Spotify.",
-        "invalid_url": "Debe ser una URL de Spotify válida.",
+        "enter_url": "Por favor, ingresa una URL de Spotify o YouTube.",
+        "invalid_url": "Debe ser una URL válida de Spotify o YouTube.",
         "ffmpeg_missing_warn": "Has seleccionado MP3 pero FFmpeg no está instalado.\n¿Deseas continuar con M4A en su lugar?",
         "cancel_confirm": "¿Estás seguro de que quieres cerrar? La descarga se cancelará.",
         
@@ -84,8 +84,8 @@ TRANSLATIONS = {
     "en": {
         "title": "Harmony",
         "app_subtitle": "M4A/MP3 Downloader",
-        "spotify_url": "Spotify URL (track, album, or playlist):",
-        "paste_url_placeholder": "Paste Spotify URL here...",
+        "spotify_url": "Spotify or YouTube URL:",
+        "paste_url_placeholder": "Paste a track, album, playlist, or video...",
         "audio_config": "Audio Settings",
         "format": "Format:",
         "quality": "Quality:",
@@ -113,7 +113,7 @@ TRANSLATIONS = {
         "tab_settings": "General Settings",
         "test_credentials": "Test Credentials",
         "save_continue": "Save & Continue",
-        "spotify_welcome": "Harmony gets high-quality audio from YouTube with full Spotify metadata.\n\nYou only need to config your credentials:",
+        "spotify_welcome": "Harmony downloads from Spotify and YouTube. Credentials are only needed for Spotify links; YouTube works directly.",
         "spotify_instructions": "To use it, create an app in the Spotify Developer dashboard:",
         "open_dashboard": "Open Spotify Developer Dashboard",
         "client_id": "Client ID:",
@@ -130,8 +130,8 @@ TRANSLATIONS = {
         # Alerts
         "error": "Error",
         "success": "Success",
-        "enter_url": "Please enter a Spotify URL.",
-        "invalid_url": "It must be a valid Spotify URL.",
+        "enter_url": "Please enter a Spotify or YouTube URL.",
+        "invalid_url": "It must be a valid Spotify or YouTube URL.",
         "ffmpeg_missing_warn": "You picked MP3 but FFmpeg is not installed.\nDo you want to continue with M4A instead?",
         "cancel_confirm": "Are you sure you want to close? Download will be canceled.",
         

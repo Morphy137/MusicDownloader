@@ -1,6 +1,6 @@
 # M4A_Downloader 🎵
 
-**Una herramienta moderna y de código abierto para descargar canciones, álbumes o playlists de Spotify** en archivos M4A de alta calidad, obteniendo el audio desde YouTube y añadiendo automáticamente metadatos completos (título, artista, álbum, carátula, año, etc.). Incluye tanto una interfaz gráfica intuitiva (GUI) como una potente línea de comandos (CLI). Ahora con interfaz rediseñada, iconos en todos los botones y sin dependencia de ffmpeg.
+**Una herramienta moderna y de código abierto para descargar canciones, álbumes o playlists de Spotify y videos/playlists de YouTube** en archivos M4A de alta calidad. Los enlaces de Spotify obtienen el audio desde YouTube y añaden metadatos completos (título, artista, álbum, carátula, año, etc.); los enlaces de YouTube se descargan directamente con metadatos de YouTube. Incluye tanto una interfaz gráfica intuitiva (GUI) como una potente línea de comandos (CLI). Ahora con interfaz rediseñada, iconos en todos los botones y sin dependencia de ffmpeg.
 
 ![MorphyDownloader GUI](assets/img/screnshot.png)
 
@@ -10,11 +10,12 @@
 
 ## 🚀 ¿Cómo funciona?
 
-1. Obtiene la información de la canción, álbum o playlist desde Spotify usando la API oficial (necesitas tus propias credenciales).
-2. Busca la mejor coincidencia en YouTube para cada pista usando yt-dlp.
-3. Descarga el audio en la mejor calidad disponible como M4A (sin conversión ni ffmpeg).
-4. Añade metadatos completos y carátula desde Spotify usando mutagen.
-5. El proceso es totalmente automático, robusto y muestra el progreso claramente tanto en CLI como en GUI.
+1. Detecta si la URL es de Spotify o YouTube.
+2. Para enlaces de Spotify, obtiene la información de la canción, álbum o playlist usando la API oficial (necesitas tus propias credenciales).
+3. Busca la mejor coincidencia en YouTube para cada pista de Spotify usando yt-dlp, o lee videos/playlists de YouTube directamente.
+4. Descarga el audio en la mejor calidad disponible como M4A (sin conversión ni ffmpeg).
+5. Añade metadatos y carátula usando información de Spotify o YouTube mediante mutagen.
+6. El proceso es totalmente automático, robusto y muestra el progreso claramente tanto en CLI como en GUI.
 
 ![MorphyDownloader URL](assets/img/URL_Song.png)
 
@@ -69,7 +70,7 @@ Para lanzar la GUI:
 python main.py
 ```
 
-Pega tu URL de Spotify, elige la carpeta de destino y sigue el progreso en tiempo real. Ahora puedes cambiar la configuración en cualquier momento desde el botón de configuración.
+Pega tu URL de Spotify o YouTube, elige la carpeta de destino y sigue el progreso en tiempo real. Ahora puedes cambiar la configuración en cualquier momento desde el botón de configuración.
 
 ### Línea de comandos (CLI)
 
@@ -81,7 +82,7 @@ python -m morphydownloader.cli --url "https://open.spotify.com/playlist/ID_DE_LA
 
 Opciones principales:
 
-- `--url`: URL de playlist, álbum o canción de Spotify
+- `--url`: URL de playlist, álbum o canción de Spotify, o video/playlist de YouTube
 - `--output`: Carpeta de destino para los archivos M4A
 
 ---

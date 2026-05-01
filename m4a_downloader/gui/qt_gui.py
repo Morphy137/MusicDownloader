@@ -10,6 +10,7 @@ from ..config import Config
 from ..gui.config_dialog import get_saved_audio_format, get_saved_audio_quality
 from .theme_manager import ThemeManager
 from ..locales import _
+from ..utils import detect_url_source
 
 import sys
 import os
@@ -396,7 +397,8 @@ class MorphyDownloaderQt(QWidget):
             QMessageBox.warning(self, _('error'), _('enter_url'))
             return
         
-        if 'spotify.com' not in url and 'spoti.fi' not in url:
+        source_type = detect_url_source(url)
+        if source_type == "unknown":
             QMessageBox.warning(self, _('error'), _('invalid_url'))
             return
             
@@ -411,12 +413,14 @@ class MorphyDownloaderQt(QWidget):
         
         self.output_box.clear()
         
-        if 'track' in url:
+        if source_type == 'spotify_track':
             msg = _('preparing_song', format=audio_format.upper())
-        elif 'playlist' in url:
+        elif source_type in ('spotify_playlist', 'youtube_playlist'):
              msg = _('preparing_playlist', format=audio_format.upper())
-        elif 'album' in url:
+        elif source_type == 'spotify_album':
              msg = _('preparing_album', format=audio_format.upper())
+        elif source_type == 'youtube_video':
+             msg = _('preparing_song', format=audio_format.upper())
         else:
              msg = _('preparing', format=audio_format.upper())
         
