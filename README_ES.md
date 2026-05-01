@@ -1,147 +1,196 @@
-# M4A_Downloader 🎵
+# Harmony
 
-**Una herramienta moderna y de código abierto para descargar canciones, álbumes o playlists de Spotify y videos/playlists de YouTube** en archivos M4A de alta calidad. Los enlaces de Spotify obtienen el audio desde YouTube y añaden metadatos completos (título, artista, álbum, carátula, año, etc.); los enlaces de YouTube se descargan directamente con metadatos de YouTube. Incluye tanto una interfaz gráfica intuitiva (GUI) como una potente línea de comandos (CLI). Ahora con interfaz rediseñada, iconos en todos los botones y sin dependencia de ffmpeg.
+Harmony es una aplicación de escritorio y línea de comandos para descargar música desde enlaces de Spotify y YouTube. Puede procesar canciones, álbumes y playlists de Spotify, buscar el audio correspondiente en YouTube, descargarlo como M4A o MP3 y escribir metadatos como título, artista, álbum, número de pista, fecha de lanzamiento, carátula y letras opcionales. También permite descargar directamente videos y playlists de YouTube.
 
-![MorphyDownloader GUI](assets/img/screnshot.png)
+![Interfaz de Harmony](assets/img/screnshot.png)
 
----
+## Funciones
 
----
+- Descarga desde canciones, álbumes y playlists de Spotify.
+- Descarga directa desde videos y playlists de YouTube.
+- Guarda audio como M4A sin conversión, o como MP3 cuando FFmpeg está disponible.
+- Añade metadatos y carátula con `mutagen`.
+- Plantillas opcionales para nombres de archivo y subcarpetas para álbumes/playlists.
+- Descargas paralelas configurables.
+- Interfaz gráfica con PySide6 y CLI con Typer/Rich.
+- Las credenciales de Spotify solo son necesarias para enlaces de Spotify. Los enlaces de YouTube funcionan sin configurar Spotify.
 
-## 🚀 ¿Cómo funciona?
+## Cómo Funciona
 
-1. Detecta si la URL es de Spotify o YouTube.
-2. Para enlaces de Spotify, obtiene la información de la canción, álbum o playlist usando la API oficial (necesitas tus propias credenciales).
-3. Busca la mejor coincidencia en YouTube para cada pista de Spotify usando yt-dlp, o lee videos/playlists de YouTube directamente.
-4. Descarga el audio en la mejor calidad disponible como M4A (sin conversión ni ffmpeg).
-5. Añade metadatos y carátula usando información de Spotify o YouTube mediante mutagen.
-6. El proceso es totalmente automático, robusto y muestra el progreso claramente tanto en CLI como en GUI.
+Harmony tiene dos flujos de descarga:
 
-![MorphyDownloader URL](assets/img/URL_Song.png)
+1. **URL de Spotify**
+   - Lee metadatos de canción, álbum o playlist mediante la Spotify Web API.
+   - Construye búsquedas optimizadas de YouTube para cada pista.
+   - Selecciona la mejor coincidencia usando título, artista, canal y duración.
+   - Descarga el audio con `yt-dlp`.
+   - Aplica metadatos y carátula de Spotify.
 
-**Nota:**
+2. **URL de YouTube**
+   - Detecta si la URL apunta a un video o una playlist.
+   - Lee la metadata disponible directamente con `yt-dlp`.
+   - Descarga cada video como audio.
+   - Aplica metadatos derivados de YouTube y miniatura cuando está disponible.
 
-- El programa NO contiene malware, spyware ni troyanos. Todo el código es abierto y auditable.
-- Se recomienda desactivar temporalmente el Antivirus si el navegador no permite descargarlo.
-- Necesitas tus propias credenciales de la API de Spotify (ver abajo). La app te guiará en la configuración la primera vez que la ejecutes.
+![Entrada de URL](assets/img/URL_Song.png)
 
----
+## URLs Compatibles
 
----
+- `https://open.spotify.com/track/...`
+- `https://open.spotify.com/album/...`
+- `https://open.spotify.com/playlist/...`
+- `https://youtu.be/...`
+- `https://www.youtube.com/watch?v=...`
+- `https://www.youtube.com/playlist?list=...`
+- Enlaces de YouTube Music compatibles con `yt-dlp`
 
-## 🛠️ Instalación y requisitos
+Si una URL de video de YouTube también contiene el parámetro `list=`, Harmony la trata como una playlist.
 
-1. **Python 3.12 o superior** 🐍
+## Requisitos
 
-2. Instala las dependencias:
+- Python 3.12 o superior
+- Credenciales de Spotify Developer para descargas desde Spotify
+- FFmpeg solo si quieres salida en MP3
 
-   ```sh
-   pip install -r requirements.txt
-   ```
+Instala las dependencias de Python:
 
-3. Crea una app en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/) y obtén tu `Client ID` y `Client Secret`.
+```sh
+pip install -r requirements.txt
+```
 
-4. Configura tus credenciales:
+Dependencias principales:
 
-   - El programa te guiará en la configuración la primera vez que lo ejecutes (recomendado para la mayoría de usuarios).
-   - Alternativamente, puedes establecer las siguientes variables de entorno manualmente:
-     - `SPOTIPY_CLIENT_ID`
-     - `SPOTIPY_CLIENT_SECRET`
+- `yt-dlp`
+- `spotipy`
+- `mutagen`
+- `PySide6`
+- `typer`
+- `rich`
+- `certifi`
 
----
+## Ejecutable Precompilado
 
-## 📥 Descargar (Ejecutable precompilado)
+Las builds de Windows se pueden publicar en GitHub Releases como archivo ZIP. Los usuarios solo necesitan extraer el ZIP y ejecutar `Harmony.exe`; la versión empaquetada no requiere instalar Python.
 
-Puedes descargar un `.exe` precompilado (y versión consola) desde la sección de releases de GitHub. No requiere instalación: solo ejecuta el archivo y sigue las instrucciones de configuración. La GUI ahora tiene iconos en todos los botones y un tema oscuro moderno.
+![Archivos ejecutables de Harmony](assets/img/ejecutables.png)
 
-![MorphyDownloader .EXE](assets/img/ejecutables.png)
+## Configuración de Spotify
 
----
+Las credenciales de Spotify no son necesarias para descargar desde YouTube, pero sí para canciones, álbumes y playlists de Spotify.
 
----
+1. Abre el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
+2. Crea una aplicación.
+3. Copia el `Client ID` y el `Client Secret`.
+4. Agrégalos en la ventana de configuración de Harmony, o configúralos manualmente:
 
-## 🎧 Uso
+```sh
+set SPOTIPY_CLIENT_ID=tu_client_id
+set SPOTIPY_CLIENT_SECRET=tu_client_secret
+```
 
-### Interfaz gráfica (GUI)
+PowerShell:
 
-Para lanzar la GUI:
+```powershell
+$env:SPOTIPY_CLIENT_ID="tu_client_id"
+$env:SPOTIPY_CLIENT_SECRET="tu_client_secret"
+```
+
+## Uso
+
+### Interfaz Gráfica
+
+Inicia la aplicación:
 
 ```sh
 python main.py
 ```
 
-Pega tu URL de Spotify o YouTube, elige la carpeta de destino y sigue el progreso en tiempo real. Ahora puedes cambiar la configuración en cualquier momento desde el botón de configuración.
+Pega una URL de Spotify o YouTube, elige la carpeta de destino, selecciona el formato de audio e inicia la descarga. Desde el botón de configuración puedes cambiar formato, calidad, plantilla de nombres, subcarpetas, tema, idioma, letras y descargas paralelas.
 
-### Línea de comandos (CLI)
+### Línea de Comandos
 
-Ejemplo para descargar una playlist:
+Ejemplo con playlist de Spotify:
 
 ```sh
-python -m morphydownloader.cli --url "https://open.spotify.com/playlist/ID_DE_LA_PLAYLIST" --output music
+python -m m4a_downloader.cli --url "https://open.spotify.com/playlist/ID_DE_PLAYLIST" --output music
 ```
 
-Opciones principales:
+Ejemplo con video de YouTube:
 
-- `--url`: URL de playlist, álbum o canción de Spotify, o video/playlist de YouTube
-- `--output`: Carpeta de destino para los archivos M4A
+```sh
+python -m m4a_downloader.cli --url "https://www.youtube.com/watch?v=ID_DEL_VIDEO" --output music
+```
 
----
+Ejemplo con playlist de YouTube:
 
----
+```sh
+python -m m4a_downloader.cli --url "https://www.youtube.com/playlist?list=ID_DE_PLAYLIST" --output music
+```
 
-## 📂 Estructura del proyecto
+Opciones útiles:
 
-- `main.py`: Punto de entrada. Lanza la GUI por defecto o la CLI si se indica.
-- `morphydownloader/`: Código fuente principal.
-  - `cli.py`: Lógica de la CLI.
-  - `gui/qt_gui.py`: Interfaz gráfica Qt (ahora con tamaño dinámico, no fixed size).
-  - `core/`: Módulos de integración con Spotify, YouTube y metadatos.
-  - `config.py`, `utils.py`: Utilidades y configuración.
-- `assets/`: Iconos y recursos gráficos (ahora organizados en carpetas específicas).
-- `requirements.txt`: Dependencias Python.
+- `--url`, `-u`: URL de Spotify o YouTube.
+- `--output`: Carpeta de salida. Por defecto usa `music`.
+- `--format`, `-f`: `m4a` o `mp3`.
+- `--quality`, `-q`: Bitrate para MP3, por ejemplo `128`, `192`, `256` o `320`.
+- `--parallel`, `-p`: Número de descargas paralelas, de `1` a `8`.
 
----
+## Crear la Build de Windows
 
----
+La build principal de la interfaz usa `Harmony.spec`.
 
-## 📦 Dependencias principales
+```powershell
+pyinstaller --clean --noconfirm Harmony.spec
+```
 
-- yt-dlp (descarga y búsqueda en YouTube)
-- spotipy (API de Spotify)
-- mutagen (metadatos para M4A)
-- PySide6 (GUI Qt)
-- typer (CLI)
-- rich (salida colorida)
+El resultado se genera en:
 
----
+```text
+dist/Harmony/
+```
 
----
+Para crear un ZIP listo para subir a GitHub Releases:
 
-## ⚠️ Notas y recomendaciones
+```powershell
+Compress-Archive -Path .\dist\Harmony\* -DestinationPath .\dist\Harmony-windows.zip -Force
+```
 
-- El proyecto es modular y fácil de mantener o extender.
-- Si tienes problemas con la búsqueda en YouTube, asegúrate de tener la última versión de yt-dlp.
-- Los archivos temporales y tokens se regeneran automáticamente.
-- Todos los botones ahora usan iconos para una apariencia más moderna.
-- El esquema de colores de la interfaz se ha actualizado para un mejor modo oscuro.
-- El tamaño de la ventana ahora es dinámico y se adapta a tu pantalla.
-- Puedes cambiar la configuración en cualquier momento desde la GUI.
-- ¡Si te gusta este proyecto, considera darle una ⭐ en GitHub y compartirlo!
+## Estructura del Proyecto
 
----
+```text
+.
+├── main.py
+├── m4a_downloader/
+│   ├── cli.py
+│   ├── config.py
+│   ├── locales.py
+│   ├── utils.py
+│   ├── core/
+│   │   ├── metadata.py
+│   │   ├── spotify_client.py
+│   │   └── youtube_downloader.py
+│   └── gui/
+│       ├── config_dialog.py
+│       ├── qt_gui.py
+│       └── theme_manager.py
+├── assets/
+├── docs/
+├── Harmony.spec
+├── m4a_downloader.spec
+└── requirements.txt
+```
 
----
+## Notas
 
-## 📜 Licencia
+- M4A es el formato predeterminado porque se puede descargar directamente desde YouTube sin conversión.
+- La salida MP3 requiere FFmpeg. Si FFmpeg no está disponible, Harmony usa M4A como alternativa.
+- La extracción desde YouTube depende de `yt-dlp`; mantenerlo actualizado ayuda cuando YouTube cambia su comportamiento.
+- Descarga solo contenido propio, de dominio público o contenido para el que tengas permiso.
 
-MIT License
+## Licencia
 
----
+Licencia MIT.
 
-**¡Gracias por usar M4A_Downloader!** 🎧 Si tienes sugerencias, abre un issue o pull request.
+## English
 
----
-
-# English
-
-For the English version, see [README.md](README.md)
+For the English version, see [README.md](README.md).
