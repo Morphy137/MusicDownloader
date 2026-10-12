@@ -239,7 +239,7 @@ class YouTubeDownloader:
         logger.warning(f"No suitable video found for: {artist} - {title} (searched {elapsed_time:.1f}s)")
         raise ValueError(f"No suitable YouTube video found for: {artist} - {title}")
     
-    def _get_ydl_opts(self) -> dict:
+    def _get_ydl_opts(self, progress_hook=None) -> dict:
         """Obtener opciones de yt-dlp según el formato seleccionado"""
         base_opts = {
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
@@ -250,11 +250,13 @@ class YouTubeDownloader:
             'fragment_retries': 2,
             'ignoreerrors': False,
         }
-        
+        if progress_hook:
+            base_opts['progress_hooks'] = [progress_hook]
+
         if self.audio_format == 'mp3':
-            # Para MP3: descargar M4A y convertir con FFmpeg
+            # Para MP3: descargar M4A/bestaudio y convertir con FFmpeg
             base_opts.update({
-                'format': 'bestaudio[ext=m4a]/bestaudio',
+                'format': 'bestaudio[ext=m4a]/bestaudio/best',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -264,9 +266,9 @@ class YouTubeDownloader:
         else:
             # Para M4A: descarga directa
             base_opts.update({
-                'format': 'bestaudio[ext=m4a]/bestaudio',
+                'format': 'bestaudio[ext=m4a]/bestaudio/best',
             })
-        
+
         return base_opts
 
     def _get_info_opts(self, flat_playlist: bool = False) -> dict:
@@ -291,88 +293,117 @@ class YouTubeDownloader:
             return thumbnails[-1].get('url', '')
         return info.get('thumbnail', '')
 
-    def _metadata_from_youtube_info(self, info: dict, track_number: int = 1) -> dict:
+    def _metadata_from_info(self, info: dict, track_number: int = 1) -> dict:
         artist = (
             info.get('artist')
             or info.get('creator')
             or info.get('uploader')
             or info.get('channel')
-            or 'YouTube'
+            or 'Unknown Artist'
         )
-        title = info.get('track') or info.get('title') or 'Unknown title'
+        title = info.get('track') or info.get('title') or 'Unknown Title'
         upload_date = info.get('upload_date') or ''
         release_date = ""
         if len(upload_date) == 8:
             release_date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}"
 
+        default_album = "SoundCloud" if "soundcloud.com" in info.get("webpage_url", "") else "YouTube"
+
         return {
             "artist_name": artist,
             "track_title": title,
             "track_number": track_number,
-            "isrc": "",
+            "isrc": info.get("isrc", ""),
             "album_art": self._select_thumbnail(info),
-            "album_name": info.get('playlist_title') or info.get('album') or "YouTube",
+            "album_name": info.get('playlist_title') or info.get('album') or default_album,
             "release_date": release_date,
             "artists": [artist],
             "youtube_url": info.get('webpage_url') or info.get('original_url') or info.get('url', ''),
         }
 
-    def get_youtube_entries(self, url: str) -> List[dict]:
-        """Extraer videos descargables desde una URL de YouTube video/playlist."""
-        parsed = urlparse(url)
+    def get_web_entries(self, url_or_query: str) -> List[dict]:
+        """Extraer videos/tracks desde una URL de YouTube, SoundCloud o consulta de búsqueda."""
+        target = url_or_query.strip()
+        is_query = not target.startswith("http://") and not target.startswith("https://")
+
+        if is_query:
+            search_url = f"ytsearch1:{target}"
+            with yt_dlp.YoutubeDL(self._get_info_opts(flat_playlist=False)) as ydl:
+                info = ydl.extract_info(search_url, download=False)
+            if info and info.get('entries'):
+                info = info['entries'][0]
+            if not info:
+                raise ValueError(f"No se encontraron resultados para: '{target}'")
+            return [{
+                "url": info.get('webpage_url') or f"https://www.youtube.com/watch?v={info.get('id')}",
+                "title": info.get('title') or target,
+                "playlist_title": "",
+                "track_number": 1,
+                "info": info,
+            }]
+
+        parsed = urlparse(target)
         query = parse_qs(parsed.query)
-        is_playlist = "list" in query or parsed.path.lower().startswith("/playlist")
+        is_playlist = "list" in query or parsed.path.lower().startswith("/playlist") or "/sets/" in parsed.path.lower()
 
         with yt_dlp.YoutubeDL(self._get_info_opts(flat_playlist=is_playlist)) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(target, download=False)
 
         if not info:
-            raise ValueError("No se pudo leer la URL de YouTube")
+            raise ValueError("No se pudo leer la URL proporcionada")
 
         if info.get('_type') == 'playlist' or is_playlist:
-            playlist_title = info.get('title') or info.get('playlist_title') or "YouTube Playlist"
+            playlist_title = info.get('title') or info.get('playlist_title') or "Playlist"
             entries = []
             for index, entry in enumerate(info.get('entries') or [], start=1):
                 if not entry:
                     continue
-                video_id = entry.get('id')
-                video_url = entry.get('webpage_url') or entry.get('url')
-                if video_id and (not video_url or not video_url.startswith('http')):
-                    video_url = f"https://www.youtube.com/watch?v={video_id}"
-                if not video_url:
+                item_url = entry.get('webpage_url') or entry.get('url')
+                item_id = entry.get('id')
+                if item_id and (not item_url or not item_url.startswith('http')):
+                    item_url = f"https://www.youtube.com/watch?v={item_id}"
+                if not item_url:
                     logger.warning(f"Skipping playlist item without URL: {entry.get('title', 'Unknown')}")
                     continue
                 entries.append({
-                    "url": video_url,
+                    "url": item_url,
                     "title": entry.get('title') or f"Track {index}",
                     "playlist_title": playlist_title,
                     "track_number": index,
                 })
 
             if not entries:
-                raise ValueError("La playlist de YouTube no contiene videos descargables")
+                raise ValueError("La playlist no contiene elementos descargables")
 
             return entries
 
         return [{
-            "url": info.get('webpage_url') or url,
-            "title": info.get('title') or "YouTube video",
+            "url": info.get('webpage_url') or target,
+            "title": info.get('title') or "Web audio",
             "playlist_title": "",
             "track_number": 1,
             "info": info,
         }]
 
-    def get_youtube_metadata(self, url: str, track_number: int = 1, playlist_title: str = "") -> dict:
-        """Obtener metadata completa para un video de YouTube."""
+    def get_youtube_entries(self, url: str) -> List[dict]:
+        """Alias retrocompatible para get_web_entries."""
+        return self.get_web_entries(url)
+
+    def get_web_metadata(self, url: str, track_number: int = 1, playlist_title: str = "") -> dict:
+        """Obtener metadata completa para un video o track web."""
         with yt_dlp.YoutubeDL(self._get_info_opts(flat_playlist=False)) as ydl:
             info = ydl.extract_info(url, download=False)
 
         if not info:
-            raise ValueError(f"No se pudo leer la metadata de YouTube: {url}")
+            raise ValueError(f"No se pudo leer la metadata de la URL: {url}")
 
         if playlist_title:
             info['playlist_title'] = playlist_title
-        return self._metadata_from_youtube_info(info, track_number)
+        return self._metadata_from_info(info, track_number)
+
+    def get_youtube_metadata(self, url: str, track_number: int = 1, playlist_title: str = "") -> dict:
+        """Alias retrocompatible para get_web_metadata."""
+        return self.get_web_metadata(url, track_number, playlist_title)
     
     def _convert_to_mp3(self, m4a_file: str) -> str:
         """Convertir archivo M4A a MP3 usando FFmpeg directamente"""
@@ -421,36 +452,34 @@ class YouTubeDownloader:
             logger.error(f"Error during FFmpeg conversion: {e}")
             raise
     
-    def download_audio(self, yt_link: str, playlist: bool = False) -> str:
-        """Download audio from YouTube link in specified format"""
-        ydl_opts = self._get_ydl_opts()
+    def download_audio(self, yt_link: str, playlist: bool = False, progress_hook=None) -> str:
+        """Download audio from YouTube or SoundCloud link in specified format"""
+        ydl_opts = self._get_ydl_opts(progress_hook=progress_hook)
         ydl_opts['noplaylist'] = not playlist
-        
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(yt_link, download=True)
-                
+
                 if self.audio_format == 'mp3':
                     # yt-dlp ya debería haber convertido a MP3 con postprocessor
-                    # Buscar el archivo MP3 resultante
                     base_filename = ydl.prepare_filename(info)
-                    mp3_filename = base_filename.replace('.m4a', '.mp3').replace('.webm', '.mp3')
-                    
-                    # Si yt-dlp no pudo convertir, intentar conversión manual
+                    mp3_filename = os.path.splitext(base_filename)[0] + '.mp3'
+
                     if not os.path.exists(mp3_filename) and os.path.exists(base_filename):
                         logger.info("yt-dlp conversion failed, trying manual FFmpeg conversion...")
                         if Config.check_ffmpeg():
                             mp3_filename = self._convert_to_mp3(base_filename)
                         else:
                             logger.warning("FFmpeg not available for manual conversion")
-                            return base_filename  # Devolver M4A como fallback
-                    
+                            return base_filename
+
                     return mp3_filename
                 else:
                     # M4A directo
                     base_filename = ydl.prepare_filename(info)
                     return base_filename
-                    
+
             except Exception as e:
                 logger.error(f"Error downloading {yt_link}: {e}")
                 raise

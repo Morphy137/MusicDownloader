@@ -1,19 +1,21 @@
 # Harmony
 
-Harmony is a desktop and command-line music downloader for Spotify and YouTube links. It can process Spotify tracks, albums, and playlists, find matching audio on YouTube, download it as M4A or MP3, and write metadata such as title, artist, album, track number, release date, cover art, and optional lyrics. It also supports direct YouTube video and playlist URLs.
+Harmony is a desktop and command-line music downloader for YouTube, SoundCloud, and Spotify links or direct song search queries. It can process Spotify tracks/playlists (optional credentials), YouTube videos/playlists, SoundCloud tracks/sets, or direct text search terms, download high-quality M4A or MP3 audio, and write metadata such as title, artist, album, track number, release date, cover art, and optional lyrics.
 
 ![Harmony GUI](assets/img/screnshot.png)
 
 ## Features
 
-- Download from Spotify tracks, albums, and playlists.
-- Download directly from YouTube videos and playlists.
+- Modern minimalist user interface with animated progress bars and dynamic platform badges.
+- Download directly from YouTube (videos and playlists).
+- Download directly from SoundCloud (tracks and sets/playlists).
+- Direct search query support (type any song or artist name to search and download directly).
+- Optional Spotify support for tracks, albums, and playlists (credentials only needed for Spotify links).
 - Save audio as M4A without conversion, or MP3 when FFmpeg is available.
-- Add metadata and cover art with `mutagen`.
+- Embed rich ID3/MP4 metadata, album cover art, and optional lyrics using `mutagen` and `lrclib`.
 - Optional file naming templates and subfolders for albums/playlists.
 - Configurable parallel downloads.
-- GUI built with PySide6 and a CLI built with Typer/Rich.
-- Spotify credentials are only required for Spotify URLs. YouTube URLs work without Spotify setup.
+- Modern GUI built with PySide6 and a CLI built with Typer/Rich.
 
 ## How It Works
 
@@ -34,15 +36,13 @@ Harmony has two download flows:
 
 ![URL input](assets/img/URL_Song.png)
 
-## Supported URLs
+## Supported Inputs
 
-- `https://open.spotify.com/track/...`
-- `https://open.spotify.com/album/...`
-- `https://open.spotify.com/playlist/...`
-- `https://youtu.be/...`
-- `https://www.youtube.com/watch?v=...`
-- `https://www.youtube.com/playlist?list=...`
-- YouTube Music links supported by `yt-dlp`
+- Direct Song Title or Artist Search (e.g. `Daft Punk One More Time`)
+- SoundCloud Tracks (`https://soundcloud.com/...`) and Sets (`https://soundcloud.com/.../sets/...`)
+- YouTube Videos (`https://www.youtube.com/watch?v=...`) and Playlists (`https://www.youtube.com/playlist?list=...`)
+- Spotify Tracks, Albums, and Playlists (`https://open.spotify.com/...`)
+- YouTube Music & Short links supported by `yt-dlp`
 
 If a YouTube video URL also contains a `list=` parameter, Harmony treats it as a playlist URL.
 

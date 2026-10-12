@@ -128,26 +128,36 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
             if create_subfolders:
                 safe_name = sanitize_filename_part(playlist_name) or "Playlist"
                 playlist_folder = os.path.join(output, safe_name)
-        elif source_type.startswith("youtube"):
-            log("▶️ Analizando URL de YouTube...")
+        elif source_type.startswith("youtube") or source_type.startswith("soundcloud") or source_type == "search_query":
+            if source_type.startswith("soundcloud"):
+                log("☁️ Analizando URL de SoundCloud...")
+            elif source_type == "search_query":
+                log(f"🔍 Buscando '{url}'...")
+            else:
+                log("▶️ Analizando URL de YouTube...")
+
             yt_probe = YouTubeDownloader(
                 output_dir=output,
                 quality=quality,
                 audio_format=audio_format
             )
-            entries = yt_probe.get_youtube_entries(url)
-            is_playlist = len(entries) > 1 or source_type == "youtube_playlist"
-            playlist_name = entries[0].get("playlist_title") or "YouTube"
+            entries = yt_probe.get_web_entries(url)
+            is_playlist = len(entries) > 1 or source_type in ("youtube_playlist", "soundcloud_playlist")
+            playlist_name = entries[0].get("playlist_title") or ("SoundCloud" if source_type.startswith("soundcloud") else "YouTube")
             if is_playlist and create_subfolders:
-                safe_name = sanitize_filename_part(playlist_name) or "YouTube Playlist"
+                safe_name = sanitize_filename_part(playlist_name) or "Playlist"
                 playlist_folder = os.path.join(output, safe_name)
             songs = entries
             if is_playlist:
-                log(f"📋 Playlist de YouTube detectada: {len(songs)} video(s)")
+                log(f"📋 Playlist detectada: {len(songs)} elemento(s)")
+            elif source_type.startswith("soundcloud"):
+                log("☁️ Track de SoundCloud detectado")
+            elif source_type == "search_query":
+                log("🔍 Resultado de búsqueda encontrado")
             else:
                 log("🎬 Video de YouTube detectado")
         else:
-            raise ValueError("Tipo de URL no soportado")
+            raise ValueError("Tipo de URL o consulta no soportada")
         
         # Configurar directorios
         temp_dir = os.path.join(playlist_folder, "tmp")
@@ -178,54 +188,63 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
                     return candidate
                 counter += 1
 
+        def make_progress_hook(song_idx, total_songs):
+            def hook(d):
+                if d.get('status') == 'downloading' and progress_callback:
+                    downloaded = d.get('downloaded_bytes', 0)
+                    total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                    if total_songs == 1 and total_bytes > 0:
+                        progress_callback(downloaded, total_bytes)
+            return hook
+
         def download_spotify_song(track_info, i):
             expected_name = get_formatted_filename(track_info, naming_format, audio_format)
             destination = os.path.join(playlist_folder, expected_name)
-            
-            # Skip si ya existe
+
             if os.path.exists(destination):
                 log(f"({i}/{total}) {expected_name} ya existe. Saltando...", "warning")
                 if progress_callback:
                     progress_callback(i, total)
-                return 0  # No descargada
-            
+                return 0
+
             try:
                 log(f"({i}/{total}) Buscando '{track_info['track_title']} - {track_info['artist_name']}'...")
                 video_link = yt_downloader.find_youtube(track_info)
-                
+
                 log(f"({i}/{total}) Descargando desde YouTube...")
-                audio_file = yt_downloader.download_audio(video_link)
-                
+                audio_file = yt_downloader.download_audio(
+                    video_link,
+                    progress_hook=make_progress_hook(i, total)
+                )
+
                 if audio_file and os.path.exists(audio_file):
-                    # Aplicar metadatos
                     try:
                         MetadataSetter.set_metadata(track_info, audio_file)
                         log(f"({i}/{total}) Metadatos aplicados correctamente")
                     except Exception as e:
                         log(f"({i}/{total}) Warning: Error aplicando metadatos: {e}", "warning")
-                    
-                    # Mover archivo final
+
                     if os.path.abspath(audio_file) != os.path.abspath(destination):
                         os.replace(audio_file, destination)
-                    
+
                     log(f"✅ Descargado: {expected_name}", "success")
-                    return 1  # Descargada exitosamente
+                    return 1
                 else:
                     log(f"❌ Error descargando {track_info['track_title']}", "error")
                     return 0
-                
+
             except Exception as e:
                 log(f"❌ Error en {track_info['track_title']}: {e}", "error")
                 return 0
-            
+
             finally:
                 if progress_callback:
                     progress_callback(i, total)
 
-        def download_youtube_item(entry, i):
+        def download_web_item(entry, i):
             try:
-                log(f"({i}/{total}) Leyendo metadata de YouTube: {entry.get('title', 'Video')}")
-                track_info = yt_downloader.get_youtube_metadata(
+                log(f"({i}/{total}) Leyendo metadata: {entry.get('title', 'Audio')}")
+                track_info = yt_downloader.get_web_metadata(
                     entry["url"],
                     track_number=entry.get("track_number", i),
                     playlist_title=entry.get("playlist_title", "")
@@ -237,13 +256,17 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
                     log(f"({i}/{total}) {expected_name} ya existe. Saltando...", "warning")
                     return 0
 
-                log(f"({i}/{total}) Descargando video de YouTube...")
-                audio_file = yt_downloader.download_audio(entry["url"], playlist=False)
+                log(f"({i}/{total}) Descargando audio...")
+                audio_file = yt_downloader.download_audio(
+                    entry["url"],
+                    playlist=False,
+                    progress_hook=make_progress_hook(i, total)
+                )
 
                 if audio_file and os.path.exists(audio_file):
                     try:
                         MetadataSetter.set_metadata(track_info, audio_file)
-                        log(f"({i}/{total}) Metadatos de YouTube aplicados")
+                        log(f"({i}/{total}) Metadatos aplicados correctamente")
                     except Exception as e:
                         log(f"({i}/{total}) Warning: Error aplicando metadatos: {e}", "warning")
 
@@ -254,26 +277,27 @@ def download(url, output="music", audio_format=None, quality=None, parallel=None
                     log(f"✅ Descargado: {os.path.basename(final_destination)}", "success")
                     return 1
 
-                log(f"❌ Error descargando {entry.get('title', 'video')}", "error")
+                log(f"❌ Error descargando {entry.get('title', 'audio')}", "error")
                 return 0
 
             except Exception as e:
-                log(f"❌ Error en {entry.get('title', 'video')}: {e}", "error")
+                log(f"❌ Error en {entry.get('title', 'audio')}: {e}", "error")
                 return 0
 
             finally:
                 if progress_callback:
                     progress_callback(i, total)
-        
+
         # Paralelización: Usar ThreadPoolExecutor con max_workers configurables
         max_workers = min(parallel, len(songs))  # No usar más workers que canciones
-        
-        log(f"🔧 Usando {max_workers} workers para descargas paralelas", "info")
-        
+
+        log(f"🔧 Usando {max_workers} worker(s) para descargas paralelas", "info")
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
+            is_web_source = not source_type.startswith("spotify")
             for i, track_info in enumerate(songs, start=1):
-                worker_func = download_youtube_item if source_type.startswith("youtube") else download_spotify_song
+                worker_func = download_web_item if is_web_source else download_spotify_song
                 futures.append(executor.submit(worker_func, track_info, i))
             
             for future in as_completed(futures):
