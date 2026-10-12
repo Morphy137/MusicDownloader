@@ -81,20 +81,21 @@ def check_spotify_credentials():
 
 def check_assets():
     """Verificar que los assets/iconos estén disponibles según la GUI"""
+    from m4a_downloader.config import Config
     from m4a_downloader.gui.config_dialog import ICON_PATHS
 
-    icon_paths = list(ICON_PATHS.values())
     missing_assets = []
-    for path in icon_paths:
-        abs_path = os.path.abspath(path)
-        if not os.path.exists(abs_path):
-            missing_assets.append(abs_path)
+    for raw_path in ICON_PATHS.values():
+        filename = os.path.basename(raw_path)
+        resolved_path = Config.get_asset_path(filename)
+        if not os.path.exists(resolved_path) and not os.path.exists(raw_path):
+            missing_assets.append(filename)
 
     if missing_assets:
         print(f"⚠️ Assets faltantes: {', '.join(missing_assets)}")
-        print("La aplicación funcionará pero sin algunos iconos")
+        print("La aplicación funcionará con iconos alternativos/texto")
     else:
-        print("✅ Todos los assets encontrados")
+        print("✅ Todos los assets de interfaz encontrados")
 
 def show_dependencies_status():
     """Mostrar estado de todas las dependencias"""

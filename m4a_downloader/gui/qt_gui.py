@@ -2,10 +2,10 @@
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QTextEdit, QFileDialog, QProgressBar, QSizePolicy, QMessageBox,
-    QComboBox, QGroupBox, QDialog
+    QComboBox, QGroupBox, QDialog, QFrame
 )
 from PySide6.QtGui import QIcon, QFont, QCursor, QShortcut, QKeySequence
-from PySide6.QtCore import Qt, QThread, Signal, QSize, QSettings
+from PySide6.QtCore import Qt, QThread, Signal, QSize, QSettings, QPropertyAnimation, QEasingCurve
 from ..config import Config
 from ..gui.config_dialog import get_saved_audio_format, get_saved_audio_quality
 from .theme_manager import ThemeManager
@@ -61,14 +61,17 @@ class DownloadWorker(QThread):
                 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 from cli import download
             
+            class CancelException(Exception):
+                pass
+
             def progress_callback(current, total):
                 if self.cancel_requested:
-                    raise Exception("Descarga cancelada por el usuario" if _('cancel') == "Cancelar" else "Download canceled by user")
+                    raise CancelException(_('download_canceled'))
                 self.progress_updated.emit(current, total)
                 
             def log_callback(msg, level="info"):
                 if self.cancel_requested:
-                    raise Exception("Canceled")
+                    raise CancelException(_('download_canceled'))
                 elapsed = time.time() - start_time
                 if "Descarg" in msg or "Download" in msg:
                     timed_msg = f"[{elapsed:.1f}s] {msg}"
@@ -76,7 +79,7 @@ class DownloadWorker(QThread):
                 else:
                     self.log_message.emit(msg, level)
             
-            self.log_message.emit("Connecting to API...", "info")
+            self.log_message.emit("Connecting...", "info")
             download(
                 url=self.url, 
                 output=self.output_dir,
@@ -90,11 +93,18 @@ class DownloadWorker(QThread):
                 total_time = time.time() - start_time
                 success = True
                 message = f"Done in {total_time:.1f}s - FORMAT: {self.audio_format.upper()}"
+            else:
+                success = False
+                message = _('download_canceled')
                 
         except Exception as e:
             total_time = time.time() - start_time
-            message = f"Error after {total_time:.1f}s: {str(e)}"
-            self.log_message.emit(str(e), "error")
+            if self.cancel_requested or "CancelException" in type(e).__name__ or "cancel" in str(e).lower():
+                message = _('download_canceled')
+                self.log_message.emit(f"⚠️ {message}", "warning")
+            else:
+                message = f"Error after {total_time:.1f}s: {str(e)}"
+                self.log_message.emit(str(e), "error")
             success = False
             
         finally:
@@ -114,9 +124,8 @@ class MorphyDownloaderQt(QWidget):
         
     def init_ui(self):
         self.setWindowTitle(_('title'))
-        # Tamaño base seguro para resoluciones menores (ej. 720p)
-        self.setMinimumSize(500, 550)
-        self.resize(650, 700)
+        self.setMinimumSize(540, 620)
+        self.resize(680, 720)
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowCloseButtonHint, True)
         
@@ -125,146 +134,259 @@ class MorphyDownloaderQt(QWidget):
             self.setWindowIcon(QIcon(app_icon_path))
             
         layout = QVBoxLayout()
-        layout.setContentsMargins(36, 24, 36, 24)
-        layout.setSpacing(18)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
-        header_layout = QHBoxLayout()
-        self.title_label = QLabel(_('app_subtitle'))
-        self.title_label.setFont(QFont('Segoe UI', 24, QFont.Bold))
-        # The color will be handled by the Theme Manager but Title gets special attention
+        # --- HERO HEADER ---
+        header_card = QFrame()
+        header_card.setProperty("class", "card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(20, 16, 20, 16)
+
+        title_container = QVBoxLayout()
+        title_container.setSpacing(2)
+
+        app_name_label = QLabel(_('title'))
+        app_name_label.setFont(QFont('Inter', 20, QFont.Bold))
         
+        self.title_label = QLabel(_('app_subtitle'))
+        self.title_label.setFont(QFont('Inter', 11))
+        self.title_label.setProperty("class", "muted")
+
+        title_container.addWidget(app_name_label)
+        title_container.addWidget(self.title_label)
+
+        header_layout.addLayout(title_container)
+        header_layout.addStretch()
+
         self.config_btn = QPushButton()
         self._set_icon_or_text(self.config_btn, 'settings', _('settings'))
         self.config_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.config_btn.setToolTip(_('settings'))
-        self.config_btn.setFixedSize(40, 40)
+        self.config_btn.setFixedSize(42, 42)
         self.config_btn.setProperty("type", "secondary")
         self.config_btn.clicked.connect(self.open_config)
-        
-        header_layout.addWidget(self.title_label)
-        header_layout.addStretch()
-        header_layout.addWidget(self.config_btn)
-        layout.addLayout(header_layout)
 
+        header_layout.addWidget(self.config_btn)
+        layout.addWidget(header_card)
+
+        # --- INPUT CARD ---
+        input_card = QFrame()
+        input_card.setProperty("class", "card")
+        input_layout = QVBoxLayout(input_card)
+        input_layout.setContentsMargins(20, 16, 20, 18)
+        input_layout.setSpacing(10)
+
+        label_badge_layout = QHBoxLayout()
         self.url_label = QLabel(_('spotify_url'))
-        self.url_label.setFont(QFont('Inter', 12, QFont.Medium))
+        self.url_label.setFont(QFont('Inter', 12, QFont.DemiBold))
+
+        self.badge_label = QLabel("✨ " + _('source_search'))
+        self.badge_label.setFont(QFont('Inter', 10, QFont.Medium))
+        self.badge_label.setStyleSheet("""
+            background-color: rgba(108, 92, 231, 0.15);
+            color: #6C5CE7;
+            border-radius: 10px;
+            padding: 3px 10px;
+        """)
+
+        label_badge_layout.addWidget(self.url_label)
+        label_badge_layout.addStretch()
+        label_badge_layout.addWidget(self.badge_label)
+        input_layout.addLayout(label_badge_layout)
+
         self.url_entry = QLineEdit()
         self.url_entry.setFont(QFont('Inter', 12))
         self.url_entry.setPlaceholderText(_('paste_url_placeholder'))
-        self.url_entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        layout.addWidget(self.url_label)
-        layout.addWidget(self.url_entry)
+        self.url_entry.setMinimumHeight(44)
+        self.url_entry.textChanged.connect(self.on_url_changed)
+        input_layout.addWidget(self.url_entry)
 
-        self.format_group = QGroupBox(_('audio_config'))
-        format_layout = QHBoxLayout(self.format_group)
-        
+        layout.addWidget(input_card)
+
+        # --- AUDIO & FOLDER SETTINGS CARD ---
+        settings_card = QFrame()
+        settings_card.setProperty("class", "card")
+        settings_card_layout = QVBoxLayout(settings_card)
+        settings_card_layout.setContentsMargins(20, 14, 20, 16)
+        settings_card_layout.setSpacing(12)
+
+        opts_layout = QHBoxLayout()
         self.lbl_format = QLabel(_('format'))
-        format_layout.addWidget(self.lbl_format)
+        self.lbl_format.setFont(QFont('Inter', 11, QFont.Medium))
+        opts_layout.addWidget(self.lbl_format)
+
         self.format_combo = QComboBox()
         self.format_combo.addItems(['m4a', 'mp3'])
         self.format_combo.currentTextChanged.connect(self.on_format_changed)
-        format_layout.addWidget(self.format_combo)
-        
+        opts_layout.addWidget(self.format_combo)
+
         self.lbl_quality = QLabel(_('quality'))
-        format_layout.addWidget(self.lbl_quality)
+        self.lbl_quality.setFont(QFont('Inter', 11, QFont.Medium))
+        opts_layout.addWidget(self.lbl_quality)
+
         self.quality_combo = QComboBox()
         self.quality_combo.addItems(Config.SUPPORTED_QUALITY)
-        format_layout.addWidget(self.quality_combo)
-        
-        self.ffmpeg_status = QLabel()
-        self.ffmpeg_status.setWordWrap(True)
-        format_layout.addWidget(self.ffmpeg_status)
-        format_layout.addStretch()
-        layout.addWidget(self.format_group)
+        opts_layout.addWidget(self.quality_combo)
 
-        folder_section = QVBoxLayout()
+        self.ffmpeg_status = QLabel()
+        self.ffmpeg_status.setFont(QFont('Inter', 11))
+        opts_layout.addWidget(self.ffmpeg_status)
+        opts_layout.addStretch()
+
+        settings_card_layout.addLayout(opts_layout)
+
+        # Folder row
+        folder_row = QHBoxLayout()
         self.folder_label = QLabel(_('output_folder'))
-        self.folder_label.setFont(QFont('Inter', 12, QFont.Medium))
-        folder_section.addWidget(self.folder_label)
-        
-        folder_input_layout = QHBoxLayout()
+        self.folder_label.setFont(QFont('Inter', 11, QFont.Medium))
+
         default_music_path = os.path.abspath('music')
         os.makedirs(default_music_path, exist_ok=True)
-        
+
         self.output_entry = QLineEdit(default_music_path)
         self.output_entry.setFont(QFont('JetBrains Mono', 11))
         self.output_entry.setReadOnly(True)
-        self.output_entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.output_entry.setMinimumWidth(200)
-        
+
         self.browse_btn = QPushButton()
         self._set_icon_or_text(self.browse_btn, 'folder_select', _('browse'))
         self.browse_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.browse_btn.setToolTip(_('browse'))
-        self.browse_btn.setFixedSize(44, 44)
+        self.browse_btn.setFixedSize(40, 38)
         self.browse_btn.setProperty("type", "secondary")
         self.browse_btn.clicked.connect(self.choose_folder)
-        
-        folder_input_layout.addWidget(self.output_entry)
-        folder_input_layout.addWidget(self.browse_btn)
-        folder_section.addLayout(folder_input_layout)
-        layout.addLayout(folder_section)
+
+        folder_row.addWidget(self.output_entry)
+        folder_row.addWidget(self.browse_btn)
+
+        settings_card_layout.addLayout(folder_row)
+        layout.addWidget(settings_card)
+
+        # --- DOWNLOAD & PROGRESS CARD ---
+        dl_card = QFrame()
+        dl_card.setProperty("class", "card")
+        dl_card_layout = QVBoxLayout(dl_card)
+        dl_card_layout.setContentsMargins(20, 16, 20, 16)
+        dl_card_layout.setSpacing(12)
 
         self.download_btn = QPushButton()
         self._set_icon_or_text(self.download_btn, 'folder_download', _('download'))
         self.download_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.download_btn.setFont(QFont('Inter', 14, QFont.Bold))
+        self.download_btn.setMinimumHeight(48)
         self.download_btn.clicked.connect(self.start_download)
-        # Adding accessible properties for screen reader
-        self.download_btn.setAccessibleName("Boton de Descarga")
-        layout.addWidget(self.download_btn)
+        dl_card_layout.addWidget(self.download_btn)
 
         self.progress = QProgressBar()
         self.progress.setValue(0)
-        self.progress.setFixedHeight(26)
+        self.progress.setFixedHeight(22)
         self.progress.setTextVisible(True)
-        layout.addWidget(self.progress)
+        dl_card_layout.addWidget(self.progress)
 
+        layout.addWidget(dl_card)
+
+        # --- OUTPUT CONSOLE & ACTIONS ---
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
         self.output_box.setFont(QFont('JetBrains Mono', 10))
         self.output_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.output_box.setMinimumHeight(140)
+        self.output_box.setMinimumHeight(130)
         layout.addWidget(self.output_box)
 
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(8)
-        
-        self.status_label = QLabel('')
-        self.status_label.setFont(QFont('Inter', 12, QFont.Medium))
+
+        self.status_label = QLabel(_('ready_status'))
+        self.status_label.setFont(QFont('Inter', 11, QFont.Medium))
         self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.status_label.setMinimumWidth(200)
         self.status_label.setWordWrap(True)
-        
+
         buttons_container = QHBoxLayout()
-        buttons_container.setSpacing(4)
-        
+        buttons_container.setSpacing(6)
+
         self.cancel_btn = QPushButton()
         self._set_icon_or_text(self.cancel_btn, 'folder_cancel', _('cancel'))
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setToolTip(_('cancel'))
-        self.cancel_btn.setFixedSize(44, 44)
+        self.cancel_btn.setFixedSize(40, 40)
         self.cancel_btn.clicked.connect(self.cancel_download)
         self.cancel_btn.setProperty("type", "secondary")
         self.cancel_btn.setEnabled(False)
-        self.cancel_btn.setAccessibleName("Boton Cancelar")
-        
+
         self.open_btn = QPushButton()
         self._set_icon_or_text(self.open_btn, 'folder_open', _('open'))
         self.open_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.open_btn.setToolTip(_('open'))
-        self.open_btn.setFixedSize(44, 44)
+        self.open_btn.setFixedSize(40, 40)
         self.open_btn.setProperty("type", "secondary")
         self.open_btn.clicked.connect(self.open_folder)
-        
+
         buttons_container.addWidget(self.cancel_btn)
         buttons_container.addWidget(self.open_btn)
-        
+
         bottom_layout.addWidget(self.status_label, 1)
         bottom_layout.addLayout(buttons_container, 0)
         layout.addLayout(bottom_layout)
 
         self.setLayout(layout)
+
+    def on_url_changed(self, text):
+        source_type = detect_url_source(text)
+        if not text.strip():
+            self.badge_label.setText("✨ " + _('source_search'))
+            self.badge_label.setStyleSheet("""
+                background-color: rgba(108, 92, 231, 0.15);
+                color: #6C5CE7;
+                border-radius: 10px;
+                padding: 3px 10px;
+            """)
+        elif source_type.startswith("spotify"):
+            self.badge_label.setText("🟢 " + _('source_spotify'))
+            self.badge_label.setStyleSheet("""
+                background-color: rgba(30, 215, 96, 0.15);
+                color: #1ED760;
+                border-radius: 10px;
+                padding: 3px 10px;
+            """)
+        elif source_type.startswith("youtube"):
+            self.badge_label.setText("▶️ " + _('source_youtube'))
+            self.badge_label.setStyleSheet("""
+                background-color: rgba(255, 0, 0, 0.15);
+                color: #FF2E2E;
+                border-radius: 10px;
+                padding: 3px 10px;
+            """)
+        elif source_type.startswith("soundcloud"):
+            self.badge_label.setText("☁️ " + _('source_soundcloud'))
+            self.badge_label.setStyleSheet("""
+                background-color: rgba(255, 85, 0, 0.15);
+                color: #FF5500;
+                border-radius: 10px;
+                padding: 3px 10px;
+            """)
+        else:
+            self.badge_label.setText("🔍 " + _('source_search'))
+            self.badge_label.setStyleSheet("""
+                background-color: rgba(59, 130, 246, 0.15);
+                color: #3B82F6;
+                border-radius: 10px;
+                padding: 3px 10px;
+            """)
+
+    def animate_progress(self, target_val):
+        if hasattr(self, 'progress_anim') and self.progress_anim.state() == QPropertyAnimation.Running:
+            self.progress_anim.stop()
+        self.progress_anim = QPropertyAnimation(self.progress, b"value")
+        self.progress_anim.setDuration(300)
+        self.progress_anim.setStartValue(self.progress.value())
+        self.progress_anim.setEndValue(target_val)
+        self.progress_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self.progress_anim.start()
+
+    def update_progress(self, current, total):
+        if total > 0:
+            percent = int((current / total) * 100)
+            self.animate_progress(percent)
 
     def setup_shortcuts(self):
         # ATAJOS DE TECLADO
@@ -415,10 +537,14 @@ class MorphyDownloaderQt(QWidget):
         
         if source_type == 'spotify_track':
             msg = _('preparing_song', format=audio_format.upper())
-        elif source_type in ('spotify_playlist', 'youtube_playlist'):
+        elif source_type in ('spotify_playlist', 'youtube_playlist', 'soundcloud_playlist'):
              msg = _('preparing_playlist', format=audio_format.upper())
         elif source_type == 'spotify_album':
              msg = _('preparing_album', format=audio_format.upper())
+        elif source_type.startswith('soundcloud'):
+             msg = _('preparing_soundcloud', format=audio_format.upper())
+        elif source_type == 'search_query':
+             msg = _('preparing_search', format=audio_format.upper())
         elif source_type == 'youtube_video':
              msg = _('preparing_song', format=audio_format.upper())
         else:

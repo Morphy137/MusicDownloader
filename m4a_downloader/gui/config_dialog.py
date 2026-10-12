@@ -462,9 +462,9 @@ def should_show_config():
     settings = QSettings('MorphyDownloader', 'Config')
     if settings.value('dont_show_config', False, type=bool):
         return False
-    if not os.environ.get('SPOTIPY_CLIENT_ID') or not os.environ.get('SPOTIPY_CLIENT_SECRET'):
-        return True
-    return False
+    if settings.value('config_initialized', False, type=bool):
+        return False
+    return True
 
 def load_saved_config():
     settings = QSettings('MorphyDownloader', 'Config')
